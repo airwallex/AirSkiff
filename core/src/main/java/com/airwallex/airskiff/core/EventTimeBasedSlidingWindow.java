@@ -1,6 +1,7 @@
 package com.airwallex.airskiff.core;
 
 import com.airwallex.airskiff.core.api.Window;
+
 import java.time.Duration;
 
 public class EventTimeBasedSlidingWindow implements Window {

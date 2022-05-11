@@ -1,13 +1,15 @@
 package com.airwallex.airskiff.testhelpers;
 
-import java.io.Serializable;
 import org.apache.commons.lang3.builder.CompareToBuilder;
+
+import java.io.Serializable;
 
 public class TestInputData implements Comparable<TestInputData>, Serializable {
   public Integer a;
   public String b;
 
-  public TestInputData() {}
+  public TestInputData() {
+  }
 
   public TestInputData(Integer x) {
     a = x;

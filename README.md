@@ -26,12 +26,12 @@ The library is available in Maven central repository.
 <dependency>
     <groupId>com.airwallex.airskiff</groupId>
     <artifactId>core</artifactId>
-    <version>0.0.2</version>
+    <version>0.0.4</version>
 </dependency>
 ```
 ### Gradle (Kotlin)
 ```gradle
-implementation("com.airwallex.airskiff:core:0.0.2")
+implementation("com.airwallex.airskiff:core:0.0.4")
 ```
 
 ## Example

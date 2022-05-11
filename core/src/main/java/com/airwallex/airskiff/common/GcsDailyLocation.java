@@ -4,6 +4,7 @@ import com.google.api.gax.paging.Page;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
+
 import java.io.Serializable;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -20,9 +21,8 @@ public class GcsDailyLocation implements Serializable {
   // `ABC/DEF` in `ABC/DEF/2021-02-01/`
   private final String prefix;
   private final Pattern pattern;
-
-  private transient Storage storage;
   private final transient SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
+  private transient Storage storage;
 
   // for testing
   protected GcsDailyLocation(Storage storage, String bucket, String prefix) {

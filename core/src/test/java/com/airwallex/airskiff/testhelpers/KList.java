@@ -1,14 +1,15 @@
 package com.airwallex.airskiff.testhelpers;
 
 import com.airwallex.airskiff.common.functions.NamedSerializableLambda;
+
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.ListIterator;
 
 public class KList<K, T> implements List<T> {
-  private final List<T> internal;
   public final NamedSerializableLambda<T, K> toKey;
+  private final List<T> internal;
 
   public KList(List<T> internal, NamedSerializableLambda<T, K> toKey) {
     this.internal = internal;

@@ -1,19 +1,9 @@
 package com.airwallex.airskiff.core.api;
 
 import com.airwallex.airskiff.common.Pair;
-import com.airwallex.airskiff.common.functions.NamedSerializableIterableLambda;
-import com.airwallex.airskiff.common.functions.NamedSerializableLambda;
-import com.airwallex.airskiff.common.functions.NamedMonoid;
-
-import com.airwallex.airskiff.common.functions.SerializableComparator;
-import com.airwallex.airskiff.core.LeftJoinStream;
-import com.airwallex.airskiff.core.MapValueStream;
-import com.airwallex.airskiff.core.OrderedSummedStream;
-
-import com.airwallex.airskiff.core.PreviousMonoid;
-import com.airwallex.airskiff.core.StreamUtils;
-import com.airwallex.airskiff.core.SummedStream;
-import com.airwallex.airskiff.core.WindowedStream;
+import com.airwallex.airskiff.common.functions.PreviousMonoid;
+import com.airwallex.airskiff.common.functions.*;
+import com.airwallex.airskiff.core.*;
 
 public interface KStream<K, T> extends Stream<Pair<K, T>> {
   /**
@@ -42,14 +32,15 @@ public interface KStream<K, T> extends Stream<Pair<K, T>> {
    * Returns a Pair of (previousValue, currentValue)
    */
   default KStream<K, Pair> previousAndCurrent() {
-    return mapValue(t -> new Pair<>(t, t), Pair.class).sum(new PreviousMonoid());
+    return mapValue(t -> new Pair<>(t, t), Pair.class)
+      .sum(new PreviousMonoid());
   }
 
   /**
-   * This method is helpful if we want to make the order of events more deterministic.
-   * But it may only makes sense in a windowed context or a batch context, as we
-   * need multiple events to be compared with each other at the same time.
+   * This method only makes sense in a windowed context or a batch context. In real time mode, it
+   * may operate exactly the same as `sum`.
    */
+  @Deprecated
   default OrderedSummedStream<K, T> orderedSum(
     NamedMonoid<T> monoid, SerializableComparator<T> order
   ) {
@@ -58,7 +49,7 @@ public interface KStream<K, T> extends Stream<Pair<K, T>> {
 
   /**
    * This method is similar to leftJoin in SQL, where all T's in the current stream will be in the
-   * output Pair(T,U). If a key for a T does not exist in the `other` stream to be joined, U will be
+   * output {@code Pair<T,U>}. If a key for a T does not exist in the `other` stream to be joined, U will be
    * null in the output pair.
    */
   default <U> LeftJoinStream<K, T, U> leftJoin(KStream<K, U> other) {

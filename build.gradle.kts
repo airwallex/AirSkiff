@@ -3,6 +3,8 @@ plugins {
   java
   signing
   id("io.github.gradle-nexus.publish-plugin") version "1.0.0"
+  id("pmd")
+  id("com.github.spotbugs") version "5.0.6"
 }
 
 repositories {
@@ -14,6 +16,8 @@ subprojects {
   apply(plugin = "java")
   apply(plugin = "signing")
   apply(plugin = "maven-publish")
+  apply(plugin = "pmd")
+  apply(plugin = "com.github.spotbugs")
 }
 
 allprojects {
@@ -27,6 +31,7 @@ allprojects {
 
   dependencies {
     val flinkVersion = "1.12.4"
+    val scalaVersion = "2.11"
     implementation("com.google.code.gson:gson:2.8.6")
     implementation("com.google.guava:guava:30.1-jre")
 
@@ -35,10 +40,10 @@ allprojects {
     testImplementation("org.mockito:mockito-junit-jupiter:3.7.7")
     testImplementation("net.jqwik:jqwik:1.3.10")
     testImplementation("com.h2database:h2:1.4.200")
-    testImplementation("org.apache.flink:flink-table-planner-blink_2.11:$flinkVersion")
-    testImplementation("org.apache.flink:flink-clients_2.11:$flinkVersion")
+    testImplementation("org.apache.flink:flink-table-planner-blink_$scalaVersion:$flinkVersion")
+    testImplementation("org.apache.flink:flink-clients_$scalaVersion:$flinkVersion")
 
-    implementation("org.apache.flink:flink-table-planner-blink_2.11:$flinkVersion")
+    implementation("org.apache.flink:flink-table-planner-blink_$scalaVersion:$flinkVersion")
 
     // Specialize log4j
     implementation("org.apache.logging.log4j:log4j-core:2.12.1")
@@ -50,16 +55,22 @@ allprojects {
   }
 }
 
-val ossrhUsername: String by project
-val ossrhPassword: String by project
+var ossrhUsername = System.getenv("OSSRH_USERNAME")
+if (ossrhUsername == null && project.hasProperty("ossrhUsername")) {
+  ossrhUsername = project.property("ossrhUsername").toString()
+}
+var ossrhPassword = System.getenv("OSSRH_PASSWORD")
+if (ossrhPassword == null && project.hasProperty("ossrhPassword")) {
+  ossrhPassword = project.property("ossrhPassword").toString()
+}
 
 nexusPublishing {
   repositories {
     sonatype {
       nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
       snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
-      username.set(ossrhUsername)
-      password.set(ossrhPassword)
+      username.set(ossrhUsername.toString())
+      password.set(ossrhPassword.toString())
     }
   }
 }

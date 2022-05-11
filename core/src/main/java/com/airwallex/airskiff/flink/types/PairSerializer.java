@@ -1,11 +1,12 @@
 package com.airwallex.airskiff.flink.types;
 
 import com.airwallex.airskiff.common.Pair;
-import java.io.IOException;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerSnapshot;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
+
+import java.io.IOException;
 
 public class PairSerializer<L, R> extends TypeSerializer<Pair<L, R>> {
   private static final long serialVersionUID = 1L;
@@ -65,8 +66,18 @@ public class PairSerializer<L, R> extends TypeSerializer<Pair<L, R>> {
       dataOutputView.writeBoolean(true);
     } else {
       dataOutputView.writeBoolean(false);
-      leftSerializer.serialize(lrPair.l, dataOutputView);
-      rightSerializer.serialize(lrPair.r, dataOutputView);
+      if (lrPair.l == null) {
+        dataOutputView.writeBoolean(true);
+      } else {
+        dataOutputView.writeBoolean(false);
+        leftSerializer.serialize(lrPair.l, dataOutputView);
+      }
+      if (lrPair.r == null) {
+        dataOutputView.writeBoolean(true);
+      } else {
+        dataOutputView.writeBoolean(false);
+        rightSerializer.serialize(lrPair.r, dataOutputView);
+      }
     }
   }
 
@@ -76,8 +87,12 @@ public class PairSerializer<L, R> extends TypeSerializer<Pair<L, R>> {
     if (isNull) {
       return null;
     } else {
-      L l = leftSerializer.deserialize(dataInputView);
-      R r = rightSerializer.deserialize(dataInputView);
+      L l = null;
+      R r = null;
+      boolean isNullLeft = dataInputView.readBoolean();
+      if (!isNullLeft) l = leftSerializer.deserialize(dataInputView);
+      boolean isNullRight = dataInputView.readBoolean();
+      if (!isNullRight) r = rightSerializer.deserialize(dataInputView);
       return new Pair<>(l, r);
     }
   }
@@ -92,8 +107,12 @@ public class PairSerializer<L, R> extends TypeSerializer<Pair<L, R>> {
     boolean isNull = from.readBoolean();
     to.writeBoolean(isNull);
     if (!isNull) {
-      leftSerializer.copy(from, to);
-      rightSerializer.copy(from, to);
+      boolean isLeftNull = from.readBoolean();
+      to.writeBoolean(isLeftNull);
+      if (!isLeftNull) leftSerializer.copy(from, to);
+      boolean isRightNull = from.readBoolean();
+      to.writeBoolean(isRightNull);
+      if (!isRightNull) rightSerializer.copy(from, to);
     }
   }
 

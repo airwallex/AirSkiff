@@ -31,17 +31,24 @@ java {
   withJavadocJar()
 }
 
+pmd {
+  ruleSetFiles = project.files("lint/pmd-rules.xml")
+  ruleSets = emptyList()
+}
+
 artifacts {
   add("instrumentedJars", testsJar)
 }
 
 dependencies {
   val flinkVersion = "1.12.4"
+  val scalaVersion = "2.11"
   implementation("org.apache.flink:flink-avro:$flinkVersion")
-  implementation("org.apache.flink:flink-connector-kafka_2.11:$flinkVersion")
+  implementation("org.apache.flink:flink-connector-kafka_$scalaVersion:$flinkVersion")
+  testImplementation("org.apache.flink:flink-streaming-java_$scalaVersion:$flinkVersion:tests")
+  implementation("org.apache.flink:flink-runtime_$scalaVersion:$flinkVersion")
+  testImplementation("org.apache.flink:flink-test-utils_$scalaVersion:$flinkVersion")
   implementation("com.google.cloud:google-cloud-storage:1.113.8")
-
-  implementation("org.apache.flink:flink-test-utils_2.11:$flinkVersion")
 }
 
 tasks.test {
@@ -55,14 +62,24 @@ publishing {
       artifactId = project.name
       version = project.version.toString()
       from(components["java"])
+      val gpgKeyId = System.getenv("GPG_KEY_ID")
+      val gpgPassword = System.getenv("GPG_PASSWORD")
+      val gpgSecret = System.getenv("GPG_SECRET")
+
       pom {
         name.set(project.name)
         description.set("A stream library for batch and realtime data processing")
         url.set("https://github.com/airwallex/AirSkiff")
 
-        signing {
-          sign(publishing.publications)
-          sign(configurations.archives.get())
+        // either read signing credentials from environment variable or from the file
+        if (gpgSecret != null || project.hasProperty("signing.keyId")) {
+          signing {
+            if (gpgSecret != null) {
+              useInMemoryPgpKeys(gpgKeyId.toString(), gpgSecret.toString(), gpgPassword.toString())
+            }
+            sign(publishing.publications)
+            sign(configurations.archives.get())
+          }
         }
 
         licenses {

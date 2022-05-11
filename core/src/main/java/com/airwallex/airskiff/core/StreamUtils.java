@@ -4,6 +4,7 @@ import com.airwallex.airskiff.common.Pair;
 import com.airwallex.airskiff.core.api.KStream;
 import com.airwallex.airskiff.core.api.Stream;
 import com.airwallex.airskiff.core.api.Window;
+
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -19,9 +20,6 @@ public class StreamUtils implements Serializable {
     }
     if (stream instanceof MapStream) {
       return ((MapStream<?, T>) stream).uc;
-    }
-    if (stream instanceof WindowedStream) {
-      return ((WindowedStream<?, ?, T, ? extends Window>) stream).uc;
     }
     if (stream instanceof KStream) {
       return kStreamClass((KStream<?, T>) stream);
@@ -53,6 +51,9 @@ public class StreamUtils implements Serializable {
     }
     if (stream instanceof MapValueStream) {
       return ((MapValueStream<?, ?, T>) stream).uc;
+    }
+    if (stream instanceof WindowedStream) {
+      return ((WindowedStream<K, ?, T, ? extends Window>) stream).uc;
     }
     throw new IllegalArgumentException("Unknown stream type");
   }

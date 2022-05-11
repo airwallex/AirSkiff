@@ -1,13 +1,14 @@
 package com.airwallex.airskiff.core;
 
+import com.airwallex.airskiff.common.Pair;
 import com.airwallex.airskiff.common.functions.NamedSerializableIterableLambda;
 import com.airwallex.airskiff.common.functions.SerializableComparator;
 import com.airwallex.airskiff.core.api.KStream;
-import com.airwallex.airskiff.core.api.Stream;
 import com.airwallex.airskiff.core.api.Window;
+
 import java.util.Comparator;
 
-public class WindowedStream<K, T, U, W extends Window> implements Stream<U> {
+public class WindowedStream<K, T, U, W extends Window> implements KStream<K, U> {
   public final KStream<K, T> stream;
   public final W window;
   public final NamedSerializableIterableLambda<T, U> f;
@@ -25,7 +26,12 @@ public class WindowedStream<K, T, U, W extends Window> implements Stream<U> {
   }
 
   @Override
-  public Class<U> getClazz() {
-    return uc;
+  public Class<K> keyClass() {
+    return stream.keyClass();
+  }
+
+  @Override
+  public Class getClazz() {
+    return Pair.class;
   }
 }

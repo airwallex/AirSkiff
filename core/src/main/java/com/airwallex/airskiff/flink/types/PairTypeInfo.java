@@ -1,11 +1,11 @@
 package com.airwallex.airskiff.flink.types;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
-
 import com.airwallex.airskiff.common.Pair;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class PairTypeInfo<L, R> extends TypeInformation<Pair<L, R>> {
   private final TypeInformation<L> leftType;
