@@ -3,12 +3,13 @@ package com.airwallex.airskiff.core;
 import com.airwallex.airskiff.core.api.Stream;
 import com.airwallex.airskiff.flink.Utils;
 import com.airwallex.airskiff.flink.types.AvroGenericRecordConverter;
-import java.lang.reflect.Field;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.Row;
+
+import java.lang.reflect.Field;
 
 public class SqlStream<T, U> implements Stream<U> {
   public final Stream<T> stream;
@@ -42,11 +43,6 @@ public class SqlStream<T, U> implements Stream<U> {
     this.tc = tc;
   }
 
-  @Override
-  public Class<U> getClazz() {
-    return tc;
-  }
-
   private static <T> T convertRow(final Row row, final Class<T> uc) {
     if (SpecificRecordBase.class.isAssignableFrom(uc)) {
       return AvroGenericRecordConverter.convertToSpecificRecord(uc, row);
@@ -66,5 +62,10 @@ public class SqlStream<T, U> implements Stream<U> {
         throw new RuntimeException(e);
       }
     }
+  }
+
+  @Override
+  public Class<U> getClazz() {
+    return tc;
   }
 }

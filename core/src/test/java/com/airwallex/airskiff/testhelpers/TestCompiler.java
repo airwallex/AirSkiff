@@ -5,48 +5,25 @@ import com.airwallex.airskiff.common.Pair;
 import com.airwallex.airskiff.common.SlidingWindowList;
 import com.airwallex.airskiff.common.functions.NamedMonoid;
 import com.airwallex.airskiff.common.functions.NamedSerializableIterableLambda;
-import com.airwallex.airskiff.core.ConcatStream;
-import com.airwallex.airskiff.core.EventTimeBasedSlidingWindow;
-import com.airwallex.airskiff.core.FilterStream;
-import com.airwallex.airskiff.core.FlatMapStream;
-import com.airwallex.airskiff.core.KeyedSimpleStream;
-import com.airwallex.airskiff.core.LeftJoinPairMonoid;
-import com.airwallex.airskiff.core.LeftJoinStream;
-import com.airwallex.airskiff.core.MapStream;
-import com.airwallex.airskiff.core.MapValueStream;
-import com.airwallex.airskiff.core.OrderedSummedStream;
-import com.airwallex.airskiff.core.SourceStream;
-import com.airwallex.airskiff.core.SqlStream;
-import com.airwallex.airskiff.core.StreamUtils;
-import com.airwallex.airskiff.core.SummedStream;
-import com.airwallex.airskiff.core.WindowedStream;
+import com.airwallex.airskiff.core.*;
 import com.airwallex.airskiff.core.api.KStream;
 import com.airwallex.airskiff.core.api.Stream;
 import com.airwallex.airskiff.core.api.Window;
-import java.lang.reflect.Field;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.time.Instant;
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.commons.lang3.builder.CompareToBuilder;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.types.Row;
 
-public class TestCompiler implements Compiler<List<?>> {
-  private final String h2Url;
+import java.lang.reflect.Field;
+import java.sql.*;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+import java.util.stream.Collectors;
 
+public class TestCompiler implements Compiler<List<?>> {
   private static final Map<Class<?>, Class<?>> primitiveMap;
+  private static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS");
 
   static {
     primitiveMap = new HashMap<>(9);
@@ -61,17 +38,14 @@ public class TestCompiler implements Compiler<List<?>> {
     primitiveMap.put(void.class, Void.class);
   }
 
-  // H2 registered function must be public static
-  public static String date(long tsInMillis, String format) {
-    return Instant.ofEpochMilli(tsInMillis).atZone(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern(format));
-  }
+  private final String h2Url;
 
   public TestCompiler() {
     var home = System.getenv("HOME");
     h2Url = "jdbc:h2:" + home + "/h2_test_01";
     try (Connection conn = DriverManager.getConnection(h2Url)) {
       String sql =
-        "CREATE ALIAS IF NOT EXISTS UnixTime FOR \"com.airwallex.airskiff.core.testhelpers.TestCompiler.date\"; ";
+        "CREATE ALIAS IF NOT EXISTS UnixTime FOR \"com.airwallex.airskiff.testhelpers.TestCompiler.date\"; ";
       Statement statement = conn.createStatement();
       statement.execute(sql);
     } catch (Exception e) {
@@ -79,11 +53,16 @@ public class TestCompiler implements Compiler<List<?>> {
     }
   }
 
+  // H2 registered function must be public static
+  public static String date(long tsInMillis, String format) {
+    return Instant.ofEpochMilli(tsInMillis).atZone(ZoneOffset.UTC).format(DateTimeFormatter.ofPattern(format));
+  }
+
   @Override
   public <T> List<Pair<Long, T>> compile(Stream<T> stream) {
 
     if (stream instanceof SourceStream) {
-      return ((ListSourceConfig<T>) ((SourceStream<T>) stream).config).source();
+      return ((com.airwallex.airskiff.testhelpers.ListSourceConfig<T>) ((SourceStream<T>) stream).config).source();
     }
     if (stream instanceof MapStream) {
       return compileMap((MapStream<?, T>) stream);
@@ -95,13 +74,10 @@ public class TestCompiler implements Compiler<List<?>> {
       return compileConcat((ConcatStream<T>) stream);
     }
     if (stream instanceof FlatMapStream) {
-      return compileFlatMap((FlatMapStream<?, T>) stream);
+      return compileFlat((FlatMapStream<?, T>) stream);
     }
     if (stream instanceof KStream) {
-      return (List<Pair<Long, T>>) (List) compileKStream((KStream<?, ?>) stream);
-    }
-    if (stream instanceof WindowedStream) {
-      return compileWindow((WindowedStream<?, ?, T, ?>) stream);
+      return (List<Pair<Long, T>>) (List) compileKS((KStream<?, ?>) stream);
     }
     if (stream instanceof SqlStream) {
       return compileSql((SqlStream<?, T>) stream);
@@ -112,8 +88,8 @@ public class TestCompiler implements Compiler<List<?>> {
   private <K, T, U> KList<K, Pair<Long, Pair<K, Pair<T, U>>>> compileLeftJoin(
     LeftJoinStream<K, T, U> stream
   ) {
-    List<Pair<Long, Pair<K, T>>> l1 = compileKStream(stream.s1);
-    List<Pair<Long, Pair<K, U>>> l2 = compileKStream(stream.s2);
+    List<Pair<Long, Pair<K, T>>> l1 = compileKS(stream.s1);
+    List<Pair<Long, Pair<K, U>>> l2 = compileKS(stream.s2);
 
     List<Pair<Long, Pair<K, Pair<T, U>>>> l3 = new ArrayList<>();
     for (Pair<Long, Pair<K, T>> p : l1) {
@@ -153,17 +129,17 @@ public class TestCompiler implements Compiler<List<?>> {
         res.add(new Pair<>(p.l, new Pair<>(k, s)));
       }
     }
-    return new KList<>(res, p -> p.r.l);
+    return new com.airwallex.airskiff.testhelpers.KList<>(res, p -> p.r.l);
   }
 
-  private <K, T, U, W extends Window> List<Pair<Long, U>> compileWindow(
+  private <K, T, U, W extends Window> KList<K, Pair<Long, Pair<K, U>>> compileWindow(
     WindowedStream<K, T, U, W> stream
   ) {
-    KList<K, Pair<Long, Pair<K, T>>> ks = compileKStream(stream.stream);
+    KList<K, Pair<Long, Pair<K, T>>> ks = compileKS(stream.stream);
     Window w = stream.window;
     NamedSerializableIterableLambda<T, U> f = stream.f;
     Comparator<T> comparator = stream.comparator;
-    List<Pair<Long, U>> result = new ArrayList<>(ks.size());
+    List<Pair<Long, Pair<K, U>>> result = new ArrayList<>(ks.size());
 
     if (w instanceof EventTimeBasedSlidingWindow) {
       EventTimeBasedSlidingWindow sw = (EventTimeBasedSlidingWindow) w;
@@ -181,9 +157,9 @@ public class TestCompiler implements Compiler<List<?>> {
         while (it.hasNext()) {
           last = it.next();
         }
-        result.add(new Pair<>(t.l, last));
+        result.add(new Pair<>(t.l, new Pair<>(t.r.l, last)));
       }
-      return result;
+      return new KList<>(result, t -> t.r.l);
     }
     throw new IllegalArgumentException("window type not supported: " + w.getClass().getName());
   }
@@ -206,7 +182,7 @@ public class TestCompiler implements Compiler<List<?>> {
     return l3;
   }
 
-  private <T, U> List<Pair<Long, U>> compileFlatMap(FlatMapStream<T, U> fms) {
+  private <T, U> List<Pair<Long, U>> compileFlat(FlatMapStream<T, U> fms) {
     var l = compile(fms.stream);
 
     var results = new ArrayList<Pair<Long, U>>();
@@ -234,18 +210,18 @@ public class TestCompiler implements Compiler<List<?>> {
   }
 
   private <K, T> KList<K, Pair<Long, Pair<K, T>>> compileSum(SummedStream<K, T> ss) {
-    var ll = compileKStream(ss.stream);
+    var ll = compileKS(ss.stream);
     return new KList<>(sum(ll, ss.monoid), x -> x.r.l);
   }
 
   private <K, T> KList<K, Pair<Long, Pair<K, T>>> compileOrderedSum(OrderedSummedStream<K, T> oss) {
-    var ll = compileKStream(oss.stream);
+    var ll = compileKS(oss.stream);
     ll.sort((o1, o2) -> new CompareToBuilder().append(o1.l, o2.l).append(o1.r.r, o2.r.r, oss.order).toComparison());
 
     return new KList<>(sum(ll, oss.monoid), x -> x.r.l);
   }
 
-  private <K, T> KList<K, Pair<Long, Pair<K, T>>> compileKStream(KStream<K, T> ks) {
+  private <K, T> KList<K, Pair<Long, Pair<K, T>>> compileKS(KStream<K, T> ks) {
     if (ks instanceof KeyedSimpleStream) {
       KeyedSimpleStream<K, T> s = (KeyedSimpleStream<K, T>) ks;
       List<Pair<Long, T>> l = compile(s.stream);
@@ -267,11 +243,14 @@ public class TestCompiler implements Compiler<List<?>> {
     if (ks instanceof MapValueStream) {
       return mapValue((MapValueStream<K, ?, T>) ks);
     }
+    if (ks instanceof WindowedStream) {
+      return compileWindow((WindowedStream<K, ?, T, ?>) ks);
+    }
     throw new IllegalArgumentException("Unknown KStream type: " + ks.getClass());
   }
 
   private <K, T, U> KList<K, Pair<Long, Pair<K, U>>> mapValue(MapValueStream<K, T, U> ks) {
-    KList<K, Pair<Long, Pair<K, T>>> ll = compileKStream(ks.stream);
+    KList<K, Pair<Long, Pair<K, T>>> ll = compileKS(ks.stream);
     List<Pair<Long, Pair<K, U>>> res = new ArrayList<>();
     for (Pair<Long, Pair<K, T>> p : ll) {
       res.add(new Pair<>(p.l, new Pair<>(p.r.l, ks.fn.apply(p.r.r))));
@@ -301,7 +280,7 @@ public class TestCompiler implements Compiler<List<?>> {
       }
       // Query rows
       String select = ss.sql.substring(0, 6);
-      sql = ss.sql.replaceFirst(select, select + " ts__, ").replaceFirst("DAY\\(\\d+\\)", "DAY");
+      sql = ss.sql.replaceFirst(select, select + " ts__, ").replaceAll("DAY\\(\\d+\\)", "DAY");
 
       ResultSet result = statement.executeQuery(sql);
       return castQueryResultSetToList(result, ss.mapper);
@@ -321,8 +300,6 @@ public class TestCompiler implements Compiler<List<?>> {
     createTableSqlBuilder.append("row_time__ TIMESTAMP").append(");");
     return createTableSqlBuilder.toString();
   }
-
-  private static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSSSSSSS");
 
   private <T> String buildInsertRowSQL(String tableName, Long ts, T row, Field[] fds) throws Exception {
     StringBuilder insertRowSqlBuilder = new StringBuilder("INSERT INTO " + tableName + " VALUES (" + ts + ",");
@@ -350,6 +327,7 @@ public class TestCompiler implements Compiler<List<?>> {
       case "String":
         return "VARCHAR(250)";
       case "Integer":
+      case "int":
         return "INTEGER";
       case "Long":
       case "long":
@@ -357,8 +335,11 @@ public class TestCompiler implements Compiler<List<?>> {
       case "Float":
         return "REAL";
       case "Double":
-      case "boolean":
+      case "double":
         return "DOUBLE";
+      case "boolean":
+      case "Boolean":
+        return "BOOLEAN";
       default:
         throw new IllegalArgumentException(t + " not supported for SQL testing");
     }

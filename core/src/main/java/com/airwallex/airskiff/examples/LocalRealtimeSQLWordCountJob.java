@@ -4,11 +4,12 @@ import com.airwallex.airskiff.core.SourceStream;
 import com.airwallex.airskiff.core.api.Stream;
 import com.airwallex.airskiff.flink.FlinkLocalTextConfig;
 import com.airwallex.airskiff.flink.FlinkRealtimeCompiler;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 public class LocalRealtimeSQLWordCountJob {
   public static void main(String[] args) throws Exception {

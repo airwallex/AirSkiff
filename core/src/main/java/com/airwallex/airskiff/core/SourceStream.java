@@ -1,7 +1,7 @@
 package com.airwallex.airskiff.core;
 
-import com.airwallex.airskiff.core.config.Config;
 import com.airwallex.airskiff.core.api.Stream;
+import com.airwallex.airskiff.core.config.Config;
 
 public class SourceStream<T> implements Stream<T> {
   public final Config<T> config;

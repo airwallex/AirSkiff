@@ -5,15 +5,16 @@ import com.airwallex.airskiff.core.SourceStream;
 import com.airwallex.airskiff.core.api.Stream;
 import com.airwallex.airskiff.flink.FlinkBatchCompiler;
 import com.airwallex.airskiff.flink.FlinkRealtimeCompiler;
-import java.util.Comparator;
-import java.util.List;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.junit.jupiter.api.Assertions;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 public class TestRunner {
   public final EnvironmentSettings fsSettings;

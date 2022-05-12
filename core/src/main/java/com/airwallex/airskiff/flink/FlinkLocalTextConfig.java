@@ -1,10 +1,10 @@
 package com.airwallex.airskiff.flink;
 
-import static com.airwallex.airskiff.flink.Utils.tuple2TypeInfo;
-
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
+import static com.airwallex.airskiff.flink.Utils.tuple2TypeInfo;
 
 public class FlinkLocalTextConfig implements FlinkConfig<String> {
   private final String path;

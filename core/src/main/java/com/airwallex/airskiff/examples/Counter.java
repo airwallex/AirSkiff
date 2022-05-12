@@ -4,7 +4,8 @@ public class Counter {
   public String key;
   public Long c;
 
-  public Counter() {}
+  public Counter() {
+  }
 
   public Counter(String key, Long c) {
     this.key = key;

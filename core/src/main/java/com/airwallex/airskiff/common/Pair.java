@@ -1,14 +1,16 @@
 package com.airwallex.airskiff.common;
 
-import java.io.Serializable;
 import org.apache.commons.lang3.builder.EqualsBuilder;
 import org.apache.commons.lang3.builder.HashCodeBuilder;
+
+import java.io.Serializable;
 
 public class Pair<L, R> implements Serializable {
   public L l;
   public R r;
 
-  public Pair() {}
+  public Pair() {
+  }
 
   public Pair(L l, R r) {
     this.l = l;
