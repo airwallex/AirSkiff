@@ -16,8 +16,7 @@ repositories {
 }
 description = "core"
 
-val testsJar by tasks.registering(Jar::class) {
-  archiveClassifier.set("tests")
+tasks.jar {
   from(sourceSets["test"].output)
 }
 
@@ -34,10 +33,6 @@ java {
 pmd {
   ruleSetFiles = project.files("lint/pmd-rules.xml")
   ruleSets = emptyList()
-}
-
-artifacts {
-  add("instrumentedJars", testsJar)
 }
 
 dependencies {
