@@ -40,7 +40,7 @@ allprojects {
     testImplementation("org.mockito:mockito-junit-jupiter:3.7.7")
     testImplementation("net.jqwik:jqwik:1.3.10")
     testImplementation("com.h2database:h2:1.4.200")
-    testCompileOnly("org.apache.flink:flink-table-planner-blink_$scalaVersion:$flinkVersion")
+    testImplementation("org.apache.flink:flink-table-planner-blink_$scalaVersion:$flinkVersion")
     testImplementation("org.apache.flink:flink-clients_$scalaVersion:$flinkVersion")
 
     compileOnly("org.apache.flink:flink-table-planner-blink_$scalaVersion:$flinkVersion")
