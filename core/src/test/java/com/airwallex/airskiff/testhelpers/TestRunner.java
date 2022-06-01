@@ -25,7 +25,7 @@ public class TestRunner {
   public final TestCompiler testCompiler;
 
   public TestRunner() {
-    this.fsSettings = EnvironmentSettings.newInstance().useBlinkPlanner().inStreamingMode().build();
+    this.fsSettings = EnvironmentSettings.newInstance().inStreamingMode().build();
     this.env = StreamExecutionEnvironment.getExecutionEnvironment();
     this.tableEnv = StreamTableEnvironment.create(env, fsSettings);
 

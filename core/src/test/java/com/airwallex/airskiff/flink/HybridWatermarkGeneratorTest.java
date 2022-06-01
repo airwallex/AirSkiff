@@ -65,6 +65,10 @@ public class HybridWatermarkGeneratorTest {
       @Override
       public void markIdle() {
       }
+
+      @Override
+      public void markActive() {
+      }
     };
 
     eventTimeManager = new EventTimeManager();

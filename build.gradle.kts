@@ -30,24 +30,23 @@ allprojects {
   }
 
   dependencies {
-    val flinkVersion = "1.12.7"
-    val scalaVersion = "2.11"
-    implementation("com.google.code.gson:gson:2.8.6")
-    implementation("com.google.guava:guava:30.1-jre")
+    val flinkVersion = "1.15.0"
+    implementation("com.google.code.gson", "gson", "2.9.0")
+    implementation("com.google.guava", "guava", "31.1-jre")
 
-    testImplementation(platform("org.junit:junit-bom:5.7.1"))
-    testImplementation("org.junit.jupiter:junit-jupiter:5.7.1")
-    testImplementation("org.mockito:mockito-junit-jupiter:3.7.7")
-    testImplementation("net.jqwik:jqwik:1.3.10")
-    testImplementation("com.h2database:h2:1.4.200")
-    testImplementation("org.apache.flink:flink-table-planner-blink_$scalaVersion:$flinkVersion")
-    testImplementation("org.apache.flink:flink-clients_$scalaVersion:$flinkVersion")
+    testImplementation(platform("org.junit:junit-bom:5.8.2"))
+    testImplementation("org.junit.jupiter", "junit-jupiter", "5.8.2")
+    testImplementation("org.mockito", "mockito-junit-jupiter", "4.6.0")
+    testImplementation("net.jqwik", "jqwik", "1.6.5")
+    testImplementation("com.h2database", "h2", "2.1.212")
+    testImplementation("org.apache.flink", "flink-table-planner_2.12", flinkVersion)
+    testImplementation("org.apache.flink", "flink-clients", flinkVersion)
 
-    compileOnly("org.apache.flink:flink-table-planner-blink_$scalaVersion:$flinkVersion")
+    compileOnly("org.apache.flink", "flink-table-planner_2.12", flinkVersion)
 
     // Specialize log4j
-    implementation("org.apache.logging.log4j:log4j-core:2.12.1")
-    implementation("org.apache.logging.log4j:log4j-slf4j-impl:2.12.1")
+    implementation("org.apache.logging.log4j", "log4j-core", "2.17.2")
+    implementation("org.apache.logging.log4j", "log4j-slf4j-impl", "2.17.2")
   }
 
   tasks.test {
