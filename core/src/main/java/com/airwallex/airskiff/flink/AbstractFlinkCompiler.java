@@ -96,7 +96,7 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
     DataStream<Tuple2<Long, Pair<K, Pair<T, U>>>> ss =
       ks2.map(x -> new Tuple2<>(x.f0, new Pair<>(x.f1.l, new Pair<T, U>(null, x.f1.r))), outputType)
         .union(ks1.map(x -> new Tuple2<>(x.f0, new Pair<>(x.f1.l, new Pair<T, U>(x.f1.r, null))), outputType));
-    return ss.assignTimestampsAndWatermarks(Utils.watermark(isBatch()))
+    return ss
       .keyBy(t -> t.f1.l, kType)
       // a window to make sure if we have multiple events happening
       // at the same time, U is always put before T in batch mode
@@ -194,7 +194,7 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
   }
 
   protected <T> DataStream<Tuple2<Long, T>> compileConcat(ConcatStream<T> stream) {
-    return compile(stream.a).union(compile(stream.b)).assignTimestampsAndWatermarks(Utils.watermark(isBatch()));
+    return compile(stream.a).union(compile(stream.b));
   }
 
   protected <T> DataStream<Tuple2<Long, T>> compileFilter(FilterStream<T> stream) {
@@ -206,9 +206,7 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
     final var mapper = stream.mapper;
     final var typeInfo = stream.typeInfo;
     return tableEnv.toAppendStream(table, Row.class)
-      .map(r -> new Tuple2<>((Long) r.getField(0), mapper.map(r)), typeInfo)
-      // watermark and timestamp is lost after table to data stream conversion?
-      .assignTimestampsAndWatermarks(Utils.watermark(isBatch()));
+      .map(r -> new Tuple2<>((Long) r.getField(0), mapper.map(r)), typeInfo);
   }
 
   protected <K, T> KeyedStream<Tuple2<Long, Pair<K, T>>, K> compileKS(KStream<K, T> ks) {
