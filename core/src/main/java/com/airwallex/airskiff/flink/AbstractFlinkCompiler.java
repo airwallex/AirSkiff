@@ -206,7 +206,8 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
     final var mapper = stream.mapper;
     final var typeInfo = stream.typeInfo;
     return tableEnv.toAppendStream(table, Row.class)
-      .map(r -> new Tuple2<>((Long) r.getField(0), mapper.map(r)), typeInfo).assignTimestampsAndWatermarks(Utils.watermark(false));
+      .map(r -> new Tuple2<>((Long) r.getField(0), mapper.map(r)), typeInfo)
+      .assignTimestampsAndWatermarks(Utils.watermark(isBatch()));
   }
 
   protected <K, T> KeyedStream<Tuple2<Long, Pair<K, T>>, K> compileKS(KStream<K, T> ks) {
