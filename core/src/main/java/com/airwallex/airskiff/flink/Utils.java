@@ -30,10 +30,12 @@ public class Utils {
 
   public static <T> WatermarkStrategy<Tuple2<Long, T>> watermark(boolean isBatch) {
     if (isBatch) {
-      return WatermarkStrategy.<Tuple2<Long, T>>forBoundedOutOfOrderness(Duration.ofDays(365 * 10000))
+      return WatermarkStrategy.<Tuple2<Long, T>>forBoundedOutOfOrderness(Duration.ofDays(365_0000))
         .withTimestampAssigner((t, l) -> t.f0);
     } else {
-      return new RealtimeWatermarkStrategy<Tuple2<Long, T>>(Duration.ofDays(5)).withTimestampAssigner((t, l) -> t.f0);
+      return WatermarkStrategy.<Tuple2<Long, T>>forBoundedOutOfOrderness(Duration.ofMillis(10_000))
+        .withTimestampAssigner((t, l) -> t.f0);
+//      return new RealtimeWatermarkStrategy<Tuple2<Long, T>>(Duration.ofDays(5)).withTimestampAssigner((t, l) -> t.f0);
     }
   }
 
