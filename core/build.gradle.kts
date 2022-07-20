@@ -30,10 +30,10 @@ java {
   withJavadocJar()
 }
 
-pmd {
-  ruleSetFiles = project.files("lint/pmd-rules.xml")
-  ruleSets = emptyList()
-}
+//pmd {
+//  ruleSetFiles = project.files("lint/pmd-rules.xml")
+//  ruleSets = emptyList()
+//}
 
 dependencies {
   val flinkVersion = "1.12.4"

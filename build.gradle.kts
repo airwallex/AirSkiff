@@ -16,8 +16,8 @@ subprojects {
   apply(plugin = "java")
   apply(plugin = "signing")
   apply(plugin = "maven-publish")
-  apply(plugin = "pmd")
-  apply(plugin = "com.github.spotbugs")
+//  apply(plugin = "pmd")
+//  apply(plugin = "com.github.spotbugs")
 }
 
 allprojects {
