@@ -30,14 +30,19 @@ public class HybridWatermarkGenerator<T> implements WatermarkGenerator<T> {
 
   @Override
   public void onPeriodicEmit(WatermarkOutput watermarkOutput) {
-    if (eventTimeManager.isCaughtUp()) {
-      watermarkOutput.emitWatermark(new Watermark(maxTs));
+    // no event has been received at all
+    if (this.maxTs == 0) {
+      watermarkOutput.emitWatermark(new Watermark(clock.millis() - maxDelay));
     } else {
-      long elapsed = clock.millis() - lastProcessTime;
-      if (elapsed >= Constants.TEN_SECONDS.toMillis()) {
+      if (eventTimeManager.isCaughtUp()) {
         watermarkOutput.emitWatermark(new Watermark(maxTs));
       } else {
-        watermarkOutput.emitWatermark(new Watermark(maxTs - maxDelay));
+        long elapsed = clock.millis() - lastProcessTime;
+        if (elapsed >= Constants.TEN_SECONDS.toMillis()) {
+          watermarkOutput.emitWatermark(new Watermark(maxTs));
+        } else {
+          watermarkOutput.emitWatermark(new Watermark(maxTs - maxDelay));
+        }
       }
     }
   }
