@@ -33,9 +33,9 @@ public class Utils {
       return WatermarkStrategy.<Tuple2<Long, T>>forBoundedOutOfOrderness(Duration.ofDays(365_0000))
         .withTimestampAssigner((t, l) -> t.f0);
     } else {
-      return WatermarkStrategy.<Tuple2<Long, T>>forBoundedOutOfOrderness(Duration.ofMillis(10_000))
-        .withTimestampAssigner((t, l) -> t.f0);
-//      return new RealtimeWatermarkStrategy<Tuple2<Long, T>>(Duration.ofDays(5)).withTimestampAssigner((t, l) -> t.f0);
+//      return WatermarkStrategy.<Tuple2<Long, T>>forBoundedOutOfOrderness(Duration.ofMillis(10_000))
+//        .withTimestampAssigner((t, l) -> t.f0);
+      return new RealtimeWatermarkStrategy<Tuple2<Long, T>>(Duration.ofDays(5)).withTimestampAssigner((t, l) -> t.f0);
     }
   }
 
