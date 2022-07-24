@@ -33,7 +33,7 @@ public class Utils {
       return WatermarkStrategy.<Tuple2<Long, T>>forBoundedOutOfOrderness(Duration.ofDays(365 * 10000))
         .withTimestampAssigner((t, l) -> t.f0);
     } else {
-      return new RealtimeWatermarkStrategy<Tuple2<Long, T>>(Duration.ofDays(5)).withTimestampAssigner((t, l) -> t.f0);
+      return new RealtimeWatermarkStrategy<Tuple2<Long, T>>(Duration.ofDays(5)).withTimestampAssigner((t, l) -> t.f0).withIdleness(Duration.ofSeconds(3));
     }
   }
 
