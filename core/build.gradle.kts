@@ -38,8 +38,12 @@ java {
 dependencies {
   val flinkVersion = "1.12.4"
   val scalaVersion = "2.11"
+
   implementation("org.apache.flink:flink-avro:$flinkVersion")
   implementation("org.apache.flink:flink-connector-kafka_$scalaVersion:$flinkVersion")
+//  implementation("org.apache.flink:flink-streaming-java_$scalaVersion:$flinkVersion")
+  implementation("org.apache.flink:flink-table-planner-blink_2.11:$flinkVersion")
+  implementation(("org.apache.flink:flink-clients_2.11:$flinkVersion"))
   testImplementation("org.apache.flink:flink-streaming-java_$scalaVersion:$flinkVersion:tests")
   implementation("org.apache.flink:flink-runtime_$scalaVersion:$flinkVersion")
   testImplementation("org.apache.flink:flink-test-utils_$scalaVersion:$flinkVersion")

@@ -14,17 +14,17 @@ import java.util.Arrays;
 public class LocalBatchWordCountJob {
   public static void main(String[] args) throws Exception {
     StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
+    env.setParallelism(2);
     StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
-
     Path inputPath = Paths.get("core/src/main/resources/localInput.txt");
     FlinkLocalTextConfig config = new FlinkLocalTextConfig(inputPath.toAbsolutePath().toString());
+    System.out.println("job started...");
     Stream<Counter> stream = new SourceStream<>(config)
       .flatMap(x -> Arrays.asList(x.split("\\s")), String.class)
       .map(x -> new Counter(x, 1L), Counter.class)
       .keyBy(x -> x.key, String.class)
       .sum((a, b) -> new Counter(b.key, a == null ? 0 : a.c + b.c))
       .values();
-
     new FlinkBatchCompiler(env, tableEnv).compile(stream).print();
     env.execute();
   }

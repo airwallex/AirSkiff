@@ -26,24 +26,26 @@ public class HybridWatermarkGenerator<T> implements WatermarkGenerator<T> {
     long currentTime = clock.millis();
     lastProcessTime = currentTime;
     eventTimeManager.checkCaughtUp(currentTime - ts);
+    System.out.println(Thread.currentThread().getName() + "==========" + Thread.currentThread().getId());
   }
 
   @Override
   public void onPeriodicEmit(WatermarkOutput watermarkOutput) {
-    // no event has been received at all
     if (this.maxTs == 0) {
-      watermarkOutput.emitWatermark(new Watermark(clock.millis() - maxDelay));
+      watermarkOutput.emitWatermark(new Watermark(clock.millis()));
+      return;
+    }
+
+    if (eventTimeManager.isCaughtUp()) {
+      watermarkOutput.emitWatermark(new Watermark(maxTs));
     } else {
-      if (eventTimeManager.isCaughtUp()) {
+      long elapsed = clock.millis() - lastProcessTime;
+      if (elapsed >= Constants.TEN_SECONDS.toMillis()) {
         watermarkOutput.emitWatermark(new Watermark(maxTs));
       } else {
-        long elapsed = clock.millis() - lastProcessTime;
-        if (elapsed >= Constants.TEN_SECONDS.toMillis()) {
-          watermarkOutput.emitWatermark(new Watermark(maxTs));
-        } else {
-          watermarkOutput.emitWatermark(new Watermark(maxTs - maxDelay));
-        }
+        watermarkOutput.emitWatermark(new Watermark(maxTs - maxDelay));
       }
     }
+
   }
 }

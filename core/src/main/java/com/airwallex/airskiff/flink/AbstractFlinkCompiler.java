@@ -206,7 +206,10 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
     final var mapper = stream.mapper;
     final var typeInfo = stream.typeInfo;
     return tableEnv.toAppendStream(table, Row.class)
-      .map(r -> new Tuple2<>((Long) r.getField(0), mapper.map(r)), typeInfo)
+      .map(r -> {
+        System.out.println("r.getField(0):" + r.getField(0) + " r1:" + r.getField(1));
+        return new Tuple2<>((Long) r.getField(0), mapper.map(r));
+      }, typeInfo)
       .assignTimestampsAndWatermarks(Utils.watermark(isBatch()));
   }
 
@@ -339,11 +342,13 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
     expandSqlBuilder.append(" FROM ");
     expandSqlBuilder.append(tempTableName);
 
+    System.out.println("expandSqlBuilder.toString(): " + expandSqlBuilder.toString());
     Table table = tableEnv.sqlQuery(expandSqlBuilder.toString());
     tableEnv.createTemporaryView(tableName, table);
     String select = sql.substring(0, 6);
     // f0 is a reserved field for our internal timestamp
     String tempSql = sql.replaceFirst(select, select + " ts__,");
+    System.out.println("tempSql: " + tempSql);
     Table t = tableEnv.sqlQuery(tempSql);
     tableEnv.dropTemporaryView(tempTableName);
     tableEnv.dropTemporaryView(tableName);

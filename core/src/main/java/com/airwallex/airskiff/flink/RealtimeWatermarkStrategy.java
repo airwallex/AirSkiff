@@ -1,8 +1,6 @@
 package com.airwallex.airskiff.flink;
 
-import org.apache.flink.api.common.eventtime.WatermarkGenerator;
-import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.eventtime.*;
 
 import java.time.Clock;
 import java.time.Duration;
