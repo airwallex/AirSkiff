@@ -36,7 +36,7 @@ pmd {
 }
 
 dependencies {
-  val flinkVersion = "1.15.1"
+  val flinkVersion = "1.15.2"
   implementation("org.apache.flink", "flink-avro", flinkVersion)
   implementation("org.apache.flink", "flink-connector-kafka", flinkVersion)
   testImplementation("org.apache.flink:flink-streaming-java:$flinkVersion:tests")
