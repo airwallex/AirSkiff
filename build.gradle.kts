@@ -30,7 +30,7 @@ allprojects {
   }
 
   dependencies {
-    val flinkVersion = "1.15.1"
+    val flinkVersion = "1.15.2"
     implementation("com.google.code.gson", "gson", "2.9.0")
     implementation("com.google.guava", "guava", "31.1-jre")
 
