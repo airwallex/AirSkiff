@@ -42,7 +42,7 @@ dependencies {
   testImplementation("org.apache.flink:flink-streaming-java:$flinkVersion:tests")
   implementation("org.apache.flink", "flink-runtime", flinkVersion)
   testImplementation("org.apache.flink", "flink-test-utils", flinkVersion)
-  implementation("com.google.cloud", "google-cloud-storage", "2.7.2")
+  implementation("com.google.cloud", "google-cloud-storage", "2.11.3")
 }
 
 tasks.test {
