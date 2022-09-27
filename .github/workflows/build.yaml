@@ -30,7 +30,7 @@ jobs:
           GPG_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
           GPG_SECRET: ${{ secrets.GPG_SECRET_KEY }}
       - name: Push Maven Artifacts to SonaType (only on Master)
-#        if: ${{ github.ref == 'refs/heads/master' }}
+        if: ${{ github.ref == 'refs/heads/master' }}
         uses: gradle/gradle-build-action@0d13054264b0bb894ded474f08ebb30921341cee
         with:
           arguments: publishToSonatype closeAndReleaseSonatypeStagingRepository --info
