@@ -41,6 +41,8 @@ dependencies {
   compileOnly("org.apache.flink", "flink-connector-kafka", flinkVersion)
   compileOnly("org.apache.flink", "flink-runtime", flinkVersion)
   implementation("com.google.cloud", "google-cloud-storage", "2.11.3")
+  testImplementation("org.apache.flink", "flink-avro", flinkVersion)
+  testImplementation("org.apache.flink", "flink-connector-kafka", flinkVersion)
   testImplementation("org.apache.flink:flink-streaming-java:$flinkVersion:tests")
   testImplementation("org.apache.flink", "flink-test-utils", flinkVersion)
 }
