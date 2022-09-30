@@ -37,12 +37,12 @@ pmd {
 
 dependencies {
   val flinkVersion = "1.15.2"
-  implementation("org.apache.flink", "flink-avro", flinkVersion)
-  implementation("org.apache.flink", "flink-connector-kafka", flinkVersion)
-  testImplementation("org.apache.flink:flink-streaming-java:$flinkVersion:tests")
-  implementation("org.apache.flink", "flink-runtime", flinkVersion)
-  testImplementation("org.apache.flink", "flink-test-utils", flinkVersion)
+  compileOnly("org.apache.flink", "flink-avro", flinkVersion)
+  compileOnly("org.apache.flink", "flink-connector-kafka", flinkVersion)
+  compileOnly("org.apache.flink", "flink-runtime", flinkVersion)
   implementation("com.google.cloud", "google-cloud-storage", "2.11.3")
+  testImplementation("org.apache.flink:flink-streaming-java:$flinkVersion:tests")
+  testImplementation("org.apache.flink", "flink-test-utils", flinkVersion)
 }
 
 tasks.test {
