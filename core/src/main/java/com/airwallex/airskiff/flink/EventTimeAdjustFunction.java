@@ -32,9 +32,6 @@ public class EventTimeAdjustFunction<T> extends RichFlatMapFunction<T, Tuple2<Lo
     long currentTime = System.currentTimeMillis();
     long eventTime = timeExtractor.apply(t).toEpochMilli();
     delay = currentTime - eventTime;
-    if (delay > 500) {
-      logger.warn("Current time is {}, event timestamp is {}, before flink delay is over 500ms for {}", currentTime, eventTime, t);
-    }
     long adjustTime = eventTimeManager.adjust(eventTime, currentTime);
     out.collect(new Tuple2<>(adjustTime, t));
   }
