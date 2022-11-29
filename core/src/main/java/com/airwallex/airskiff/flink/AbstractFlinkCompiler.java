@@ -303,9 +303,11 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
                                                 }
                                               }
                                               List<U> us = Lists.newArrayList(f.apply(ts));
-                                              U last = us.get(us.size() - 1);
-                                              // we only need the last one
-                                              collector.collect(new Tuple2<>(e.f0, new Pair<>(tuple.f1.l, last)));
+                                              if(!us.isEmpty()) {
+                                                U last = us.get(us.size() - 1);
+                                                // we only need the last one
+                                                collector.collect(new Tuple2<>(e.f0, new Pair<>(tuple.f1.l, last)));
+                                              }
 
                                               sortedElements.update(elements);
                                             }
