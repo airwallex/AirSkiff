@@ -153,11 +153,13 @@ public class TestCompiler implements Compiler<List<?>> {
         swl.add(t.r.r, time);
         swl.moveStartTo(time.minus(sw.size()));
         Iterator<U> it = f.apply(swl.iter()).iterator();
-        U last = it.next();
+        U last = null;
         while (it.hasNext()) {
           last = it.next();
         }
-        result.add(new Pair<>(t.l, new Pair<>(t.r.l, last)));
+        if (last != null) {
+          result.add(new Pair<>(t.l, new Pair<>(t.r.l, last)));
+        }
       }
       return new KList<>(result, t -> t.r.l);
     }
