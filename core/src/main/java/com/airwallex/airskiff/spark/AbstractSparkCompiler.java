@@ -241,8 +241,6 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 
   private <K, T, U> Dataset compileLeftJoin(LeftJoinStream op) {
     Map<K, Pair<T, U>> accState = new HashMap<>();
-    CustomKeyedAccumulator acc = new CustomKeyedAccumulator<K, Pair<T, U>>(new LeftJoinPairMonoid<T, U>(), accState);
-    sparkSession.sparkContext().register(acc, "leftJoinAccumulator");
     Dataset<Tuple2<Long, Tuple2<K, T>>> ks1 = (Dataset<Tuple2<Long, Tuple2<K, T>>>) compile(op.s1);
     Dataset<Tuple2<Long, Tuple2<K, U>>> ks2 = (Dataset<Tuple2<Long, Tuple2<K, U>>>) compile(op.s2);
 
