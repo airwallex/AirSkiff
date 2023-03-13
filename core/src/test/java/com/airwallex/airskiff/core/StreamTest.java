@@ -80,7 +80,6 @@ public class StreamTest {
 
     var list = doubleList(data);
     list.sort(Comparator.comparing(o -> o.f0));
-
     runner().executeAndCheck(source -> source.keyBy(t -> t.b, String.class).sum(new TestMonoid()).values(),
       list,
       true,
@@ -126,7 +125,7 @@ public class StreamTest {
       data.stream().map(t -> new Tuple2<>(t.f0 % 10000, new TestInputData(t.f1.a % 1000))).collect(Collectors.toList());
 
     runner().executeAndCheck(
-      source -> source.sql("SELECT CAST(b AS INT), ABS(a * 2), CAST((a * 2) AS VARCHAR) from " + tableName,
+      source -> source.map(t -> t, TestInputData.class).sql("SELECT CAST(b AS INT) as a, ABS(a) as b, CAST(a AS VARCHAR(64)) as c from " + tableName,
         tableName,
         TestData.class
       ),
@@ -180,7 +179,7 @@ public class StreamTest {
 
     LeftJoinStream<String, TestInputData, TestInputData> x =
       source1.keyBy(d -> d.b, String.class).leftJoin(source2.keyBy(d -> d.b, String.class));
-    List<Tuple2<Long, Pair<String, Pair<TestInputData, TestInputData>>>> flinkBatchRes =
+      List<Tuple2<Long, Pair<String, Pair<TestInputData, TestInputData>>>> flinkBatchRes =
       runner().runFlinkBatch(x, data.size() * 2);
 
     Assertions.assertEquals(flinkBatchRes.size(), data.size());
@@ -225,8 +224,10 @@ public class StreamTest {
         for (TestInputData id : it) {
           last = id;
         }
-        return Collections.singletonList(last);
-      }, TestInputData::compareTo, TestInputData.class).values(), data, true, false);
+        ArrayList<TestInputData> result = new ArrayList<>();
+        result.add(last);
+        return result;
+        }, TestInputData::compareTo, TestInputData.class).values(), data, true, false);
   }
 
   private List<Tuple2<Long, TestInputData>> doubleList(List<Tuple2<Long, TestInputData>> data) {

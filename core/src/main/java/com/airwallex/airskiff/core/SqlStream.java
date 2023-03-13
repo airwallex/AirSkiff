@@ -47,7 +47,7 @@ public class SqlStream<T, U> implements Stream<U> {
     if (SpecificRecordBase.class.isAssignableFrom(uc)) {
       return AvroGenericRecordConverter.convertToSpecificRecord(uc, row);
     } else {
-      Field[] fields = uc.getFields();
+      Field[] fields = uc.getDeclaredFields();
       // r contains an extra ts field;
       assert (row.getArity() == fields.length + 1);
       Object[] args = new Object[fields.length];
