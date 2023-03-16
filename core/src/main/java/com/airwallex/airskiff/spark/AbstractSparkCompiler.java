@@ -32,7 +32,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
   @Override
   public <T> Dataset compile(Stream<T> stream) {
     if (stream instanceof SourceStream) {
-      return ((SparkConfig<T>) ((SourceStream<T>) stream).config).source(sparkSession);
+      return ((SparkConfig<T>) ((SourceStream<T>) stream).config).dataset(sparkSession);
     }
 
     if (stream instanceof MapStream) {

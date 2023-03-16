@@ -20,7 +20,7 @@ public class SparkLocalTextConfig implements SparkConfig<String> {
   }
 
   @Override
-  public Dataset<Tuple2<Long, String>> source(SparkSession session) {
+  public Dataset<Tuple2<Long, String>> dataset(SparkSession session) {
     Dataset<String> data = session.read().textFile(path);
     return data.map((MapFunction<String, Tuple2<Long, String>>) s -> new Tuple2<>(System.currentTimeMillis(), s), Encoders.tuple(Encoders.LONG(), Encoders.STRING()));
   }
@@ -28,6 +28,6 @@ public class SparkLocalTextConfig implements SparkConfig<String> {
   public static void main(String[] args) {
     SparkSession spark = SparkSession.builder().master("local").appName("something").getOrCreate();
     SparkLocalTextConfig config = new SparkLocalTextConfig("core/src/main/resources/localinput.txt");
-    config.source(spark);
+    config.dataset(spark);
   }
 }

@@ -25,7 +25,7 @@ public class TestSparkConfig<T> implements SparkConfig<T> {
   }
 
   @Override
-  public Dataset<Tuple2<Long, T>> source(SparkSession session) {
+  public Dataset<Tuple2<Long, T>> dataset(SparkSession session) {
     System.out.println(_data);
     Dataset<Tuple2<Long, T>> ds = session.createDataset(_data, Encoders.tuple(Encoders.LONG(), Utils.encode(_tc)));
     return ds;

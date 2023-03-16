@@ -8,6 +8,6 @@ import scala.Tuple2;
 public interface SparkConfig<T> extends Config<T> {
 
 
-  Dataset<Tuple2<Long, T>> source(SparkSession session);
+  Dataset<Tuple2<Long, T>> dataset(SparkSession session);
 
 }
