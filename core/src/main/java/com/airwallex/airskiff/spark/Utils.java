@@ -52,6 +52,14 @@ public class Utils {
     return Encoders.javaSerialization(clazz);
   }
 
+  public static <K> Encoder<K> encodeAvro(Class<K> clazz) {
+    Encoder<K> kEncoder = encodeBasics(clazz);
+    if (kEncoder != null) {
+      return kEncoder;
+    }
+    return Encoders.javaSerialization(clazz);
+  }
+
   public static <K> Encoder<K> encodeSQL(Class<K> clazz) {
     Encoder<K> kEncoder = encodeBasics(clazz);
     if (kEncoder != null) {

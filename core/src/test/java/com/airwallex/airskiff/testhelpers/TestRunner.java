@@ -69,7 +69,7 @@ public class TestRunner {
     Dataset<scala.Tuple2<Long, T>> ds = sparkCompiler.compile(s);
     // This is purely for fixing different serialization issues.
     // For SQL to work, we have to use Encoders.bean
-    // For Avro to work we have to use Java serialization
+    // For Avro to work we have to use Java serialization, TODO try KRYO
     Dataset<scala.Tuple2<Long, T>> result = ds.map((MapFunction<scala.Tuple2<Long, T>, scala.Tuple2<Long, T>>) t -> t,
       Encoders.tuple(Encoders.LONG(), Utils.encode(clz)));
     result.show();

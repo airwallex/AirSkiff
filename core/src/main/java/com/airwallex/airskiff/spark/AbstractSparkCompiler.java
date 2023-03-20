@@ -198,7 +198,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 
   private <K, T, U, W extends Window> Dataset compileWindowed(WindowedStream<K, T, U, W> op) {
     Dataset<Tuple2<Long, Tuple2<K, T>>> ds = compile(op.stream);
-    Encoder<Tuple3<Long, K, T>> expandedEncoder = Encoders.tuple(Encoders.LONG(), Utils.encode(op.keyClass()), Utils.encode(StreamUtils.kStreamClass(op.stream)));
+    Encoder<Tuple3<Long, K, T>> expandedEncoder = Encoders.tuple(Encoders.LONG(), Utils.encode(op.keyClass()), Utils.encodeSQL(StreamUtils.kStreamClass(op.stream)));
     Dataset<Tuple3<Long, K, T>> expanded = ds.map((MapFunction<Tuple2<Long, Tuple2<K, T>>, Tuple3<Long, K, T>>) t -> {
       return new Tuple3<>(t._1(), t._2()._1(), t._2()._2());
     }, expandedEncoder);
@@ -228,13 +228,16 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 //    finalDs.select(aggCol).show();
 
 
-    sparkSession.udf().register("riskyAgg", udaf(agg, Utils.encode(inClz)));
+    sparkSession.udf().register("riskyAgg", udaf(agg, Utils.encodeSQL(inClz)));
     String tempTableName = "windowedTempTable";
     try {
       sparkSession.catalog().dropTempView(tempTableName);
       rowDs.createTempView(tempTableName);
+      rowDs.show();
+      rowDs.printSchema();
+
       Dataset<Row> sqlResult = sparkSession.sql("select ts, key, riskyAgg(value.*) over (PARTITION BY key ORDER BY ts RANGE BETWEEN " + size + " PRECEDING AND CURRENT ROW) as agg_result from " + tempTableName);
-      Dataset<Tuple3<Long, K, U>> typedDs = sqlResult.as(Encoders.tuple(Encoders.LONG(), Utils.encode(op.keyClass()), Utils.encode(op.uc)));
+      Dataset<Tuple3<Long, K, U>> typedDs = sqlResult.as(Encoders.tuple(Encoders.LONG(), Utils.encode(op.keyClass()), Utils.encodeSQL(op.uc)));
       Class<Pair<K, U>> pairClass2 = (Class<Pair<K, U>>) new Pair<K, U>().getClass();
       Dataset<Tuple2<Long, Pair<K, U>>> finalResult = typedDs.map((MapFunction<Tuple3<Long, K, U>, Tuple2<Long, Pair<K, U>>>) t -> {
         return new Tuple2<>(t._1(), new Pair<>(t._2(), t._3()));
@@ -243,7 +246,6 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     } catch (AnalysisException e) {
       throw new RuntimeException(e);
     }
-
   }
 
   private <K, T, U> Dataset compileLeftJoin(LeftJoinStream op) {
