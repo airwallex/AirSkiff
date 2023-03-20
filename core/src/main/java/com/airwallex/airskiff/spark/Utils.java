@@ -4,7 +4,7 @@ import org.apache.spark.sql.Encoder;
 import org.apache.spark.sql.Encoders;
 
 public class Utils {
-  public static <K> Encoder<K> encode(Class<K> clazz) {
+  private static <K> Encoder<K> encodeBasics(Class<K> clazz) {
     if (clazz == String.class) {
       return (Encoder<K>) Encoders.STRING();
     }
@@ -35,6 +35,29 @@ public class Utils {
     if (clazz == byte[].class) {
       return (Encoder<K>) Encoders.BINARY();
     }
+    return null;
+  }
+
+  public static <K> Encoder<K> encode(Class<K> clazz) {
+    Encoder<K> result = encodeBasics(clazz);
+    if (result != null) {
+      return result;
+    }
+
+    // circular reference hack
+    var clazzName = clazz.getName();
+    if (clazzName.startsWith("org.apache.avro") || clazzName.startsWith("com.airwallex.data")) {
+      return Encoders.javaSerialization(clazz);
+    }
+    return Encoders.javaSerialization(clazz);
+  }
+
+  public static <K> Encoder<K> encodeSQL(Class<K> clazz) {
+    Encoder<K> kEncoder = encodeBasics(clazz);
+    if (kEncoder != null) {
+      return kEncoder;
+    }
     return Encoders.bean(clazz);
   }
+
 }

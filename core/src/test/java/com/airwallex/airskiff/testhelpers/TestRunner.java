@@ -12,6 +12,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.SparkSession;
@@ -65,9 +66,12 @@ public class TestRunner {
 
   public <T> List<scala.Tuple2<Long, T>> runSpark(Stream<T> s, int limit) throws Exception {
     Class<T> clz = StreamUtils.clz(s);
-    Dataset ds = sparkCompiler.compile(s);
-
-    Dataset<scala.Tuple2<Long, T>> result = ds.as(Encoders.tuple(Encoders.LONG(), Utils.encode(clz)));
+    Dataset<scala.Tuple2<Long, T>> ds = sparkCompiler.compile(s);
+    // This is purely for fixing different serialization issues.
+    // For SQL to work, we have to use Encoders.bean
+    // For Avro to work we have to use Java serialization
+    Dataset<scala.Tuple2<Long, T>> result = ds.map((MapFunction<scala.Tuple2<Long, T>, scala.Tuple2<Long, T>>) t -> t,
+      Encoders.tuple(Encoders.LONG(), Utils.encode(clz)));
     result.show();
 //    Dataset<scala.Tuple2<Long, T>> newResult = result.map((MapFunction<scala.Tuple2<Long, T>, scala.Tuple2<Long, T>>) t -> {
 //      System.out.println(t._1);

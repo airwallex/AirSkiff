@@ -95,7 +95,14 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
   }
 
   private <T, U> Dataset compileSql(SqlStream<T, U> op) {
-    Dataset<Tuple2<Long, T>> dataset = compile(op.stream).as(Encoders.tuple(Encoders.LONG(), Utils.encode(op.stream.getClazz())));
+    Dataset<Tuple2<Long, T>> deserialized = compile(op.stream).map((MapFunction<Tuple2<Long, T>, Tuple2<Long, T>>) v1 -> {
+//        ByteArrayInputStream is = new ByteArrayInputStream(v1);
+//        ObjectInputStream ois = new ObjectInputStream(is);
+//        Tuple2<Long, T> o = (Tuple2<Long, T>) ois.readObject();
+        return v1;
+      },
+      Encoders.tuple(Encoders.LONG(), Utils.encodeSQL(op.stream.getClazz())));
+    Dataset<Tuple2<Long, T>> dataset = deserialized.as(Encoders.tuple(Encoders.LONG(), Utils.encodeSQL(op.stream.getClazz())));
 
 //    KryoSerializer serializer = new KryoSerializer(sparkSession.sparkContext().getConf());
 //    String desUdfName = "kryo_deserialize_" + op.operator.getClazz().getName().replaceAll("\\.", "_");
@@ -154,7 +161,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
       fatDs.show();
 
 
-      Encoder<U> encoder = Encoders.bean(op.tc);
+      Encoder<U> encoder = Utils.encodeSQL(op.tc);
       Dataset<Tuple2<Long, U>> singleDs = fatDs.as(Encoders.tuple(Encoders.LONG(), encoder));
       singleDs.printSchema();
       singleDs.show();

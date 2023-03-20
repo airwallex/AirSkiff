@@ -7,10 +7,9 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.SparkSession;
 
-import java.io.Serializable;
 import java.util.Arrays;
 
-class AddMonoid implements NamedMonoid<Long>{
+class AddMonoid implements NamedMonoid<Long> {
 
   @Override
   public Long zero() {
@@ -25,21 +24,15 @@ class AddMonoid implements NamedMonoid<Long>{
 
 public class LocalSparkAccumulator {
   public static void main(String[] args) {
-
-    SparkSession spark = SparkSession.builder()
-      .master("local")
-      .appName("demo")
-      .getOrCreate();
+    SparkSession spark = SparkSession.builder().master("local").appName("demo").getOrCreate();
 
     Dataset<Long> ds = spark.createDataset(Arrays.asList(1L, 2L, 3L), Encoders.LONG());
     CustomAccumulator<Long> acc = new CustomAccumulator<>(new AddMonoid(), 0L);
     spark.sparkContext().register(acc, "customAccumulator");
-    Dataset<Long> result = ds.map((MapFunction<Long, Long>) x ->
-      {
-        acc.add(x);
-        return acc.getState();
-      }
-      , Encoders.LONG());
+    Dataset<Long> result = ds.map((MapFunction<Long, Long>) x -> {
+      acc.add(x);
+      return acc.getState();
+    }, Encoders.LONG());
     result.show();
   }
 }
