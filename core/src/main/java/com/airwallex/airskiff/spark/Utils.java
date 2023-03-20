@@ -45,11 +45,11 @@ public class Utils {
     }
 
     // circular reference hack
-    var clazzName = clazz.getName();
-    if (clazzName.startsWith("org.apache.avro") || clazzName.startsWith("com.airwallex.data")) {
-      return Encoders.javaSerialization(clazz);
-    }
-    return Encoders.javaSerialization(clazz);
+//    var clazzName = clazz.getName();
+//    if (clazzName.startsWith("org.apache.avro") || clazzName.startsWith("com.airwallex.data")) {
+//      return Encoders.javaSerialization(clazz);
+//    }
+    return Encoders.bean(clazz);
   }
 
   public static <K> Encoder<K> encodeAvro(Class<K> clazz) {

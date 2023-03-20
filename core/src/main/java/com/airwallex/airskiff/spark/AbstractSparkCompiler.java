@@ -101,8 +101,8 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 //        Tuple2<Long, T> o = (Tuple2<Long, T>) ois.readObject();
         return v1;
       },
-      Encoders.tuple(Encoders.LONG(), Utils.encodeSQL(op.stream.getClazz())));
-    Dataset<Tuple2<Long, T>> dataset = deserialized.as(Encoders.tuple(Encoders.LONG(), Utils.encodeSQL(op.stream.getClazz())));
+      Encoders.tuple(Encoders.LONG(), Utils.encode(op.stream.getClazz())));
+    Dataset<Tuple2<Long, T>> dataset = deserialized.as(Encoders.tuple(Encoders.LONG(), Utils.encode(op.stream.getClazz())));
 
 //    KryoSerializer serializer = new KryoSerializer(sparkSession.sparkContext().getConf());
 //    String desUdfName = "kryo_deserialize_" + op.operator.getClazz().getName().replaceAll("\\.", "_");
@@ -161,7 +161,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
       fatDs.show();
 
 
-      Encoder<U> encoder = Utils.encodeSQL(op.tc);
+      Encoder<U> encoder = Utils.encode(op.tc);
       Dataset<Tuple2<Long, U>> singleDs = fatDs.as(Encoders.tuple(Encoders.LONG(), encoder));
       singleDs.printSchema();
       singleDs.show();
@@ -198,7 +198,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 
   private <K, T, U, W extends Window> Dataset compileWindowed(WindowedStream<K, T, U, W> op) {
     Dataset<Tuple2<Long, Tuple2<K, T>>> ds = compile(op.stream);
-    Encoder<Tuple3<Long, K, T>> expandedEncoder = Encoders.tuple(Encoders.LONG(), Utils.encode(op.keyClass()), Utils.encodeSQL(StreamUtils.kStreamClass(op.stream)));
+    Encoder<Tuple3<Long, K, T>> expandedEncoder = Encoders.tuple(Encoders.LONG(), Utils.encode(op.keyClass()), Utils.encode(StreamUtils.kStreamClass(op.stream)));
     Dataset<Tuple3<Long, K, T>> expanded = ds.map((MapFunction<Tuple2<Long, Tuple2<K, T>>, Tuple3<Long, K, T>>) t -> {
       return new Tuple3<>(t._1(), t._2()._1(), t._2()._2());
     }, expandedEncoder);
@@ -228,7 +228,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 //    finalDs.select(aggCol).show();
 
 
-    sparkSession.udf().register("riskyAgg", udaf(agg, Utils.encodeSQL(inClz)));
+    sparkSession.udf().register("riskyAgg", udaf(agg, Utils.encode(inClz)));
     String tempTableName = "windowedTempTable";
     try {
       sparkSession.catalog().dropTempView(tempTableName);
@@ -237,7 +237,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
       rowDs.printSchema();
 
       Dataset<Row> sqlResult = sparkSession.sql("select ts, key, riskyAgg(value.*) over (PARTITION BY key ORDER BY ts RANGE BETWEEN " + size + " PRECEDING AND CURRENT ROW) as agg_result from " + tempTableName);
-      Dataset<Tuple3<Long, K, U>> typedDs = sqlResult.as(Encoders.tuple(Encoders.LONG(), Utils.encode(op.keyClass()), Utils.encodeSQL(op.uc)));
+      Dataset<Tuple3<Long, K, U>> typedDs = sqlResult.as(Encoders.tuple(Encoders.LONG(), Utils.encode(op.keyClass()), Utils.encode(op.uc)));
       Class<Pair<K, U>> pairClass2 = (Class<Pair<K, U>>) new Pair<K, U>().getClass();
       Dataset<Tuple2<Long, Pair<K, U>>> finalResult = typedDs.map((MapFunction<Tuple3<Long, K, U>, Tuple2<Long, Pair<K, U>>>) t -> {
         return new Tuple2<>(t._1(), new Pair<>(t._2(), t._3()));
