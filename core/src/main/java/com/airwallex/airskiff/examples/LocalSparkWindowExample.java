@@ -3,7 +3,7 @@ package com.airwallex.airskiff.examples;
 import com.airwallex.airskiff.core.EventTimeBasedSlidingWindow;
 import com.airwallex.airskiff.core.SourceStream;
 import com.airwallex.airskiff.core.api.Stream;
-import com.airwallex.airskiff.spark.AbstractSparkCompiler;
+import com.airwallex.airskiff.spark.SparkCompiler;
 import com.airwallex.airskiff.spark.SparkLocalTextConfig;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
@@ -25,8 +25,10 @@ public class LocalSparkWindowExample {
       .map(x -> new Counter(x, 1L), Counter.class).keyBy(x -> x.key, String.class)
       .window(new EventTimeBasedSlidingWindow(Duration.ofSeconds(10), Duration.ofSeconds(5)), it -> {
         return it;
-      }, Counter::compareTo, Counter.class).values();
-    Dataset ds = new AbstractSparkCompiler(spark).compile(op);
+      }, Counter::compareTo, Counter.class).map(x -> {
+        return x.getR();
+      }, Counter.class);
+    Dataset ds = new SparkCompiler(spark).compileAndDecode(op);
     ds.printSchema();
     ds.explain();
     ds.show();

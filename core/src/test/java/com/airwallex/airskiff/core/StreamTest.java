@@ -10,7 +10,10 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.junit.jupiter.api.Assertions;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @PropertyDefaults(tries = 10)
@@ -152,7 +155,6 @@ public class StreamTest {
     if (data.isEmpty()) {
       return;
     }
-
     runner().executeAndCheck(source -> source.keyBy(t -> t.b, String.class)
       .mapValue(t -> new TestInputData(t.a, t.b + t.b), TestInputData.class)
       .values(), data, true, false);
@@ -179,7 +181,7 @@ public class StreamTest {
 
     LeftJoinStream<String, TestInputData, TestInputData> x =
       source1.keyBy(d -> d.b, String.class).leftJoin(source2.keyBy(d -> d.b, String.class));
-      List<Tuple2<Long, Pair<String, Pair<TestInputData, TestInputData>>>> flinkBatchRes =
+    List<Tuple2<Long, Pair<String, Pair<TestInputData, TestInputData>>>> flinkBatchRes =
       runner().runFlinkBatch(x, data.size() * 2);
 
     Assertions.assertEquals(flinkBatchRes.size(), data.size());
@@ -227,7 +229,7 @@ public class StreamTest {
         ArrayList<TestInputData> result = new ArrayList<>();
         result.add(last);
         return result;
-        }, TestInputData::compareTo, TestInputData.class).values(), data, true, false);
+      }, TestInputData::compareTo, TestInputData.class).values(), data, true, false);
   }
 
   private List<Tuple2<Long, TestInputData>> doubleList(List<Tuple2<Long, TestInputData>> data) {
