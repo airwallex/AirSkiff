@@ -49,7 +49,7 @@ public class Utils {
 //    if (clazzName.startsWith("org.apache.avro") || clazzName.startsWith("com.airwallex.data")) {
 //      return Encoders.javaSerialization(clazz);
 //    }
-    return Encoders.bean(clazz);
+    return Encoders.javaSerialization(clazz);
   }
 
   public static <K> Encoder<K> encodeAvro(Class<K> clazz) {
@@ -60,7 +60,7 @@ public class Utils {
     return Encoders.javaSerialization(clazz);
   }
 
-  public static <K> Encoder<K> encodeSQL(Class<K> clazz) {
+  public static <K> Encoder<K> encodeBean(Class<K> clazz) {
     Encoder<K> kEncoder = encodeBasics(clazz);
     if (kEncoder != null) {
       return kEncoder;
