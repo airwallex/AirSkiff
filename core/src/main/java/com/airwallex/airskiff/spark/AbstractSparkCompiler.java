@@ -237,7 +237,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
       rowDs.printSchema();
 
       Dataset<Row> sqlResult = sparkSession.sql("select ts, key, riskyAgg(value.*) over (PARTITION BY key ORDER BY ts RANGE BETWEEN " + size + " PRECEDING AND CURRENT ROW) as agg_result from " + tempTableName);
-      Dataset<Tuple3<Long, K, U>> typedDs = sqlResult.as(Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.keyClass()), Utils.encode(op.uc)));
+      Dataset<Tuple3<Long, K, U>> typedDs = sqlResult.as(Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.keyClass()), Utils.encodeBean(op.uc)));
       Class<Pair<K, U>> pairClass2 = (Class<Pair<K, U>>) new Pair<K, U>().getClass();
       Dataset<Tuple2<Long, Pair<K, U>>> finalResult = typedDs.map((MapFunction<Tuple3<Long, K, U>, Tuple2<Long, Pair<K, U>>>) t -> {
         return new Tuple2<>(t._1(), new Pair<>(t._2(), t._3()));
