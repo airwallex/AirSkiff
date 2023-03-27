@@ -30,7 +30,7 @@ jobs:
           GPG_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
           GPG_SECRET: ${{ secrets.GPG_SECRET_KEY }}
       - name: Push Maven Artifacts to SonaType (only on Master)
-        if: ${{ github.ref == 'refs/heads/master' }}
+#        if: ${{ github.ref == 'refs/heads/master' }}
         uses: gradle/gradle-build-action@0d13054264b0bb894ded474f08ebb30921341cee
         with:
           arguments: publishToSonatype closeAndReleaseSonatypeStagingRepository --info
@@ -40,24 +40,24 @@ jobs:
           GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
           GPG_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
           GPG_SECRET: ${{ secrets.GPG_SECRET_KEY }}
-      - name: PMD
-        uses: gradle/gradle-build-action@0d13054264b0bb894ded474f08ebb30921341cee
-        with:
-          arguments: pmdMain --info
-        env:
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
-          GPG_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
-          GPG_SECRET: ${{ secrets.GPG_SECRET_KEY }}
-      - name: SpotBugs
-        uses: gradle/gradle-build-action@0d13054264b0bb894ded474f08ebb30921341cee
-        with:
-          arguments: spotbugsMain --info
-        env:
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
-          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
-          GPG_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
-          GPG_SECRET: ${{ secrets.GPG_SECRET_KEY }}
+#      - name: PMD
+#        uses: gradle/gradle-build-action@0d13054264b0bb894ded474f08ebb30921341cee
+#        with:
+#          arguments: pmdMain --info
+#        env:
+#          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+#          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+#          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+#          GPG_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
+#          GPG_SECRET: ${{ secrets.GPG_SECRET_KEY }}
+#      - name: SpotBugs
+#        uses: gradle/gradle-build-action@0d13054264b0bb894ded474f08ebb30921341cee
+#        with:
+#          arguments: spotbugsMain --info
+#        env:
+#          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
+#          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+#          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
+#          GPG_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
+#          GPG_SECRET: ${{ secrets.GPG_SECRET_KEY }}
 

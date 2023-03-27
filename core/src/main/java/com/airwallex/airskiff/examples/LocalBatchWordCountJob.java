@@ -22,9 +22,7 @@ public class LocalBatchWordCountJob {
       .flatMap(x -> Arrays.asList(x.split("\\s")), String.class)
       .map(x -> new Counter(x, 1L), Counter.class)
       .keyBy(x -> x.key, String.class)
-      .sum((a, b) -> new Counter(b.key, a == null ? 0 : a.c + b.c))
-      .values();
-
+      .sum((a, b) -> new Counter(b.key, a == null ? b.c : a.c + b.c)).values();
     new FlinkBatchCompiler(env, tableEnv).compile(stream).print();
     env.execute();
   }

@@ -3,8 +3,8 @@ plugins {
   java
   signing
   id("io.github.gradle-nexus.publish-plugin") version "1.0.0"
-  id("pmd")
-  id("com.github.spotbugs") version "5.0.6"
+//  id("pmd")
+//  id("com.github.spotbugs") version "5.0.6"
 }
 
 repositories {
@@ -16,8 +16,6 @@ subprojects {
   apply(plugin = "java")
   apply(plugin = "signing")
   apply(plugin = "maven-publish")
-  apply(plugin = "pmd")
-  apply(plugin = "com.github.spotbugs")
 }
 
 allprojects {

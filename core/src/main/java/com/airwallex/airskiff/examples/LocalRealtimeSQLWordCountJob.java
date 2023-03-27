@@ -16,10 +16,10 @@ public class LocalRealtimeSQLWordCountJob {
     StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment();
     StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
     env.setParallelism(1);
-
     Path inputPath = Paths.get("doesn't matter");
     // default host and port is localhost:10000 for socket stream
     FlinkLocalTextConfig config = new FlinkLocalTextConfig(inputPath.toAbsolutePath().toString());
+
     Stream<Counter> stream = new SourceStream<>(config).flatMap(x -> Arrays.asList(x.split("\\s")), String.class)
       .map(x -> new Counter(x, 1L), Counter.class)
       .sql(

@@ -81,28 +81,20 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
     throw new IllegalArgumentException("Unknown stream type " + stream.getClass());
   }
 
-  protected <K, T, U> KeyedStream<Tuple2<Long, Pair<K, Pair<T, U>>>, K> compileLeftJoin(
-    LeftJoinStream<K, T, U> stream
-  ) {
+  protected <K, T, U> KeyedStream<Tuple2<Long, Pair<K, Pair<T, U>>>, K> compileLeftJoin(LeftJoinStream<K, T, U> stream) {
     KeyedStream<Tuple2<Long, Pair<K, T>>, K> ks1 = compileKS(stream.s1);
     KeyedStream<Tuple2<Long, Pair<K, U>>, K> ks2 = compileKS(stream.s2);
     final TypeInformation<K> kType = typeInfo(stream.keyClass());
     final TypeInformation<Pair<T, U>> pairType = pairType(stream);
     final TypeInformation<Pair<K, Pair<T, U>>> keyedPairType = new PairTypeInfo<>(kType, pairType);
-    final TypeInformation<Tuple2<Long, Pair<K, Pair<T, U>>>> outputType =
-      new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, keyedPairType);
+    final TypeInformation<Tuple2<Long, Pair<K, Pair<T, U>>>> outputType = new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, keyedPairType);
 
     final LeftJoinPairMonoid<T, U> m = new LeftJoinPairMonoid<>();
-    DataStream<Tuple2<Long, Pair<K, Pair<T, U>>>> ss =
-      ks2.map(x -> new Tuple2<>(x.f0, new Pair<>(x.f1.l, new Pair<T, U>(null, x.f1.r))), outputType)
-        .union(ks1.map(x -> new Tuple2<>(x.f0, new Pair<>(x.f1.l, new Pair<T, U>(x.f1.r, null))), outputType));
-    return ss.assignTimestampsAndWatermarks(Utils.watermark(isBatch()))
-      .keyBy(t -> t.f1.l, kType)
+    DataStream<Tuple2<Long, Pair<K, Pair<T, U>>>> ss = ks2.map(x -> new Tuple2<>(x.f0, new Pair<>(x.f1.l, new Pair<T, U>(null, x.f1.r))), outputType).union(ks1.map(x -> new Tuple2<>(x.f0, new Pair<>(x.f1.l, new Pair<T, U>(x.f1.r, null))), outputType));
+    return ss.assignTimestampsAndWatermarks(Utils.watermark(isBatch())).keyBy(t -> t.f1.l, kType)
       // a window to make sure if we have multiple events happening
       // at the same time, U is always put before T in batch mode
-      .window(TumblingEventTimeWindows.of(Time.days(1)))
-      .allowedLateness(Time.days(1))
-      .process(new ProcessWindowFunction<Tuple2<Long, Pair<K, Pair<T, U>>>, Tuple2<Long, Pair<K, Pair<T, U>>>, K, TimeWindow>() {
+      .window(TumblingEventTimeWindows.of(Time.days(1))).allowedLateness(Time.days(1)).process(new ProcessWindowFunction<Tuple2<Long, Pair<K, Pair<T, U>>>, Tuple2<Long, Pair<K, Pair<T, U>>>, K, TimeWindow>() {
         // This is a global state per key across windows
         private ValueState<Pair<T, U>> state;
 
@@ -112,12 +104,7 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
         }
 
         @Override
-        public void process(
-          K k,
-          Context context,
-          Iterable<Tuple2<Long, Pair<K, Pair<T, U>>>> iterable,
-          Collector<Tuple2<Long, Pair<K, Pair<T, U>>>> collector
-        ) throws Exception {
+        public void process(K k, Context context, Iterable<Tuple2<Long, Pair<K, Pair<T, U>>>> iterable, Collector<Tuple2<Long, Pair<K, Pair<T, U>>>> collector) throws Exception {
           List<Tuple2<Long, Pair<K, Pair<T, U>>>> l = new ArrayList<>();
           for (Tuple2<Long, Pair<K, Pair<T, U>>> t : iterable) {
             l.add(t);
@@ -146,9 +133,7 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
             collector.collect(new Tuple2<>(t.f0, new Pair<>(t.f1.l, cur)));
           }
         }
-      }, outputType)
-      .filter(t -> t.f1.r.l != null)
-      .keyBy(t -> t.f1.l, kType);
+      }, outputType).filter(t -> t.f1.r.l != null).keyBy(t -> t.f1.l, kType);
   }
 
   protected <T, U> DataStream<Tuple2<Long, U>> compileFlat(FlatMapStream<T, U> fms) {
@@ -164,8 +149,7 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
   protected <K, T> KeyedStream<Tuple2<Long, Pair<K, T>>, K> compileSum(SummedStream<K, T> stream) {
     final TypeInformation<T> info = typeInfo(StreamUtils.kStreamClass(stream));
     final TypeInformation<Pair<K, T>> keyedPairType = new PairTypeInfo<>(typeInfo(stream.keyClass()), info);
-    final TypeInformation<Tuple2<Long, Pair<K, T>>> outputType =
-      new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, keyedPairType);
+    final TypeInformation<Tuple2<Long, Pair<K, T>>> outputType = new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, keyedPairType);
     KeyedStream<Tuple2<Long, Pair<K, T>>, K> ks = compileKS(stream.stream);
     return new KeyedStream<>(ks.map(new RichMapFunction<Tuple2<Long, Pair<K, T>>, Tuple2<Long, Pair<K, T>>>() {
       private ValueState<T> total;
@@ -180,16 +164,13 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
 
       @Override
       public void open(Configuration parameters) throws Exception {
-        ValueStateDescriptor<T> descriptor =
-          new ValueStateDescriptor<>(stream.monoid.name(), info, stream.monoid.zero());
+        ValueStateDescriptor<T> descriptor = new ValueStateDescriptor<>(stream.monoid.name(), info, stream.monoid.zero());
         total = getRuntimeContext().getState(descriptor);
       }
     }, outputType), t -> t.f1.l);
   }
 
-  protected <K, T> KeyedStream<Tuple2<Long, Pair<K, T>>, K> compileOrderedSum(
-    OrderedSummedStream<K, T> stream
-  ) {
+  protected <K, T> KeyedStream<Tuple2<Long, Pair<K, T>>, K> compileOrderedSum(OrderedSummedStream<K, T> stream) {
     return compileSum(new SummedStream<>(stream.stream, stream.monoid));
   }
 
@@ -205,8 +186,7 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
     final var table = createSqlTable(stream.tableName, stream.sql, stream.stream);
     final var mapper = stream.mapper;
     final var typeInfo = stream.typeInfo;
-    return tableEnv.toAppendStream(table, Row.class)
-      .map(r -> new Tuple2<>((Long) r.getField(0), mapper.map(r)), typeInfo)
+    return tableEnv.toAppendStream(table, Row.class).map(r -> new Tuple2<>((Long) r.getField(0), mapper.map(r)), typeInfo)
       // watermark and timestamp is lost after table to data stream conversion?
       .assignTimestampsAndWatermarks(Utils.watermark(isBatch()));
   }
@@ -214,14 +194,7 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
   protected <K, T> KeyedStream<Tuple2<Long, Pair<K, T>>, K> compileKS(KStream<K, T> ks) {
     if (ks instanceof KeyedSimpleStream) {
       KeyedSimpleStream<K, T> s = (KeyedSimpleStream<K, T>) ks;
-      return new KeyedStream<>(compile(s.stream).map(t -> new Tuple2<>(t.f0, new Pair<>(s.toKey.apply(t.f1), t.f1)),
-        new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO,
-          new PairTypeInfo<>(typeInfo(s.kc), typeInfo(s.stream.getClazz()))
-        )
-      ),
-        t -> t.f1.l,
-        typeInfo(s.kc)
-      );
+      return new KeyedStream<>(compile(s.stream).map(t -> new Tuple2<>(t.f0, new Pair<>(s.toKey.apply(t.f1), t.f1)), new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, new PairTypeInfo<>(typeInfo(s.kc), typeInfo(s.stream.getClazz())))), t -> t.f1.l, typeInfo(s.kc));
     }
     if (ks instanceof LeftJoinStream) {
       return (KeyedStream<Tuple2<Long, Pair<K, T>>, K>) (KeyedStream) compileLeftJoin((LeftJoinStream<K, ?, ?>) ks);
@@ -243,14 +216,10 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
 
   private <K, T, U> KeyedStream<Tuple2<Long, Pair<K, U>>, K> mapValue(MapValueStream<K, T, U> ks) {
     KeyedStream<Tuple2<Long, Pair<K, T>>, K> s = compileKS(ks.stream);
-    return new KeyedStream<>(s.map(t -> new Tuple2<>(t.f0, new Pair<>(t.f1.l, ks.fn.apply(t.f1.r))),
-      new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, new PairTypeInfo<>(typeInfo(ks.keyClass()), typeInfo(ks.uc)))
-    ), t -> t.f1.l);
+    return new KeyedStream<>(s.map(t -> new Tuple2<>(t.f0, new Pair<>(t.f1.l, ks.fn.apply(t.f1.r))), new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, new PairTypeInfo<>(typeInfo(ks.keyClass()), typeInfo(ks.uc)))), t -> t.f1.l);
   }
 
-  protected <K, T, U, W extends Window> KeyedStream<Tuple2<Long, Pair<K, U>>, K> compileWindow(
-    WindowedStream<K, T, U, W> stream
-  ) {
+  protected <K, T, U, W extends Window> KeyedStream<Tuple2<Long, Pair<K, U>>, K> compileWindow(WindowedStream<K, T, U, W> stream) {
     KeyedStream<Tuple2<Long, Pair<K, T>>, K> ks = compileKS(stream.stream);
     final Window w = stream.window;
     final Class<T> clz = StreamUtils.kStreamClass(stream.stream);
@@ -258,66 +227,58 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
     if (w instanceof EventTimeBasedSlidingWindow) {
       final EventTimeBasedSlidingWindow sw = (EventTimeBasedSlidingWindow) w;
       return new KeyedStream<>(ks.process(new KeyedProcessFunction<K, Tuple2<Long, Pair<K, T>>, Tuple2<Long, Pair<K, U>>>() {
-                                            private transient ListState<Tuple2<Long, T>> sortedElements;
+        private transient ListState<Tuple2<Long, T>> sortedElements;
 
-                                            public void open(Configuration parameters) throws Exception {
-                                              sortedElements = getRuntimeContext().getListState(new ListStateDescriptor<>("elements", tuple2TypeInfo(clz)));
-                                            }
+        public void open(Configuration parameters) throws Exception {
+          sortedElements = getRuntimeContext().getListState(new ListStateDescriptor<>("elements", tuple2TypeInfo(clz)));
+        }
 
-                                            // two things:
-                                            // 1. insert t into sorted, while maintaining the order
-                                            // 2. remove elements in sorted that is too old
-                                            private void update(List<Tuple2<Long, T>> sorted, Tuple2<Long, T> t) {
-                                              // keep a 14 times of the slide size as a buffer in case we see a late event
-                                              // TODO: revisit this. ideally, we should be able to change the number
-                                              // through a config
-                                              long lowerBoundInclusive = t.f0 - sw.size().toMillis() - sw.slide().toMillis() * 14;
-                                              while (!sorted.isEmpty() && sorted.get(0).f0 < lowerBoundInclusive) {
-                                                sorted.remove(0);
-                                              }
+        // two things:
+        // 1. insert t into sorted, while maintaining the order
+        // 2. remove elements in sorted that is too old
+        private void update(List<Tuple2<Long, T>> sorted, Tuple2<Long, T> t) {
+          // keep a 14 times of the slide size as a buffer in case we see a late event
+          // TODO: revisit this. ideally, we should be able to change the number
+          // through a config
+          long lowerBoundInclusive = t.f0 - sw.size().toMillis() - sw.slide().toMillis() * 14;
+          while (!sorted.isEmpty() && sorted.get(0).f0 < lowerBoundInclusive) {
+            sorted.remove(0);
+          }
 
-                                              int i = sorted.size() - 1;
-                                              for (; i >= 0; i--) {
-                                                Tuple2<Long, T> e = sorted.get(i);
-                                                if (e.f0 <= t.f0) {
-                                                  break;
-                                                }
-                                              }
-                                              sorted.add(i + 1, t);
-                                            }
+          int i = sorted.size() - 1;
+          for (; i >= 0; i--) {
+            Tuple2<Long, T> e = sorted.get(i);
+            if (e.f0 <= t.f0) {
+              break;
+            }
+          }
+          sorted.add(i + 1, t);
+        }
 
-                                            @Override
-                                            public void processElement(
-                                              Tuple2<Long, Pair<K, T>> tuple, Context context, Collector<Tuple2<Long, Pair<K, U>>> collector
-                                            ) throws Exception {
-                                              List<Tuple2<Long, T>> elements = Lists.newArrayList(sortedElements.get());
-                                              Tuple2<Long, T> e = new Tuple2<>(tuple.f0, tuple.f1.r);
-                                              update(elements, e);
+        @Override
+        public void processElement(Tuple2<Long, Pair<K, T>> tuple, Context context, Collector<Tuple2<Long, Pair<K, U>>> collector) throws Exception {
+          List<Tuple2<Long, T>> elements = Lists.newArrayList(sortedElements.get());
+          Tuple2<Long, T> e = new Tuple2<>(tuple.f0, tuple.f1.r);
+          update(elements, e);
 
-                                              List<T> ts = new ArrayList<>();
-                                              long lowerBoundInclusive = e.f0 - sw.size().toMillis();
-                                              long upperBoundInclusive = e.f0;
-                                              for (Tuple2<Long, T> t : elements) {
-                                                if (t.f0 >= lowerBoundInclusive && t.f0 <= upperBoundInclusive) {
-                                                  ts.add(t.f1);
-                                                }
-                                              }
-                                              List<U> us = Lists.newArrayList(f.apply(ts));
-                                              if(!us.isEmpty()) {
-                                                U last = us.get(us.size() - 1);
-                                                // we only need the last one
-                                                collector.collect(new Tuple2<>(e.f0, new Pair<>(tuple.f1.l, last)));
-                                              }
+          List<T> ts = new ArrayList<>();
+          long lowerBoundInclusive = e.f0 - sw.size().toMillis();
+          long upperBoundInclusive = e.f0;
+          for (Tuple2<Long, T> t : elements) {
+            if (t.f0 >= lowerBoundInclusive && t.f0 <= upperBoundInclusive) {
+              ts.add(t.f1);
+            }
+          }
+          List<U> us = Lists.newArrayList(f.apply(ts));
+          if (!us.isEmpty()) {
+            U last = us.get(us.size() - 1);
+            // we only need the last one
+            collector.collect(new Tuple2<>(e.f0, new Pair<>(tuple.f1.l, last)));
+          }
 
-                                              sortedElements.update(elements);
-                                            }
-                                          },
-        new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO,
-          new PairTypeInfo<>(typeInfo(stream.keyClass()), typeInfo(stream.uc))
-        )
-      ),
-        t -> t.f1.l
-      );
+          sortedElements.update(elements);
+        }
+      }, new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, new PairTypeInfo<>(typeInfo(stream.keyClass()), typeInfo(stream.uc)))), t -> t.f1.l);
     }
     throw new IllegalArgumentException("window type not supported: " + w.getClass().getName());
   }
