@@ -3,6 +3,9 @@ package com.airwallex.airskiff.core;
 import com.airwallex.airskiff.common.functions.NamedSerializableLambda;
 import com.airwallex.airskiff.core.api.Stream;
 
+import java.util.Collections;
+import java.util.List;
+
 public class FlatMapStream<T, U> implements Stream<U> {
   public final Stream<T> stream;
   public final NamedSerializableLambda<T, Iterable<U>> f;
@@ -17,5 +20,10 @@ public class FlatMapStream<T, U> implements Stream<U> {
   @Override
   public Class<U> getClazz() {
     return uc;
+  }
+
+  @Override
+  public List<Stream> upstreams() {
+    return Collections.singletonList(stream);
   }
 }

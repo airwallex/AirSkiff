@@ -4,9 +4,12 @@ import com.airwallex.airskiff.common.Pair;
 import com.airwallex.airskiff.common.functions.NamedSerializableIterableLambda;
 import com.airwallex.airskiff.common.functions.SerializableComparator;
 import com.airwallex.airskiff.core.api.KStream;
+import com.airwallex.airskiff.core.api.Stream;
 import com.airwallex.airskiff.core.api.Window;
 
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 
 public class WindowedStream<K, T, U, W extends Window> implements KStream<K, U> {
   public final KStream<K, T> stream;
@@ -33,5 +36,10 @@ public class WindowedStream<K, T, U, W extends Window> implements KStream<K, U> 
   @Override
   public Class getClazz() {
     return Pair.class;
+  }
+
+  @Override
+  public List<Stream> upstreams() {
+    return Collections.singletonList(stream);
   }
 }

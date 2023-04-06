@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static org.apache.spark.sql.functions.struct;
 import static org.apache.spark.sql.functions.udaf;
@@ -132,8 +133,12 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
       // avoid duplicates
       sparkSession.catalog().dropTempView(op.tableName);
       ds.createTempView(op.tableName);
-      String select = op.sql.substring(0, 6);
-      String tempSql = op.sql.replaceFirst(select, select + " ts__,");
+      String query = op.sql;
+      if (Pattern.compile("DAY\\(\\d+\\)").matcher(query).find()) {
+        query = query.replaceAll("DAY\\(\\d+\\)", "DAY");
+      }
+      String select = query.substring(0, 6);
+      String tempSql = query.replaceFirst(select, select + " ts__,");
       Dataset<Row> fatResult = sparkSession.sql(tempSql);
 
 

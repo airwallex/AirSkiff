@@ -24,7 +24,7 @@ public class LocalSparkSQLExample {
     Stream<Counter> op = new SourceStream<>(config)
       .flatMap(x -> Arrays.asList(x.split("\\s")), String.class)
       .map(x -> new Counter(x, 1L), Counter.class)
-      .sql("SELECT key, COUNT(*) OVER (PARTITION BY key ORDER BY row_time__ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as c FROM text",
+      .sql("SELECT key, COUNT(*) OVER (PARTITION BY key ORDER BY row_time__ RANGE BETWEEN INTERVAL 1 DAY(3) PRECEDING AND CURRENT ROW) as c FROM text",
         "text", Counter.class);
 
     Dataset ds = new AbstractSparkCompiler(spark).compile(op);

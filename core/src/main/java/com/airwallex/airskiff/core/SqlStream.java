@@ -10,6 +10,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.types.Row;
 
 import java.lang.reflect.Field;
+import java.util.Collections;
+import java.util.List;
 
 public class SqlStream<T, U> implements Stream<U> {
   public final Stream<T> stream;
@@ -68,4 +70,10 @@ public class SqlStream<T, U> implements Stream<U> {
   public Class<U> getClazz() {
     return tc;
   }
+
+  @Override
+  public List<Stream> upstreams() {
+    return Collections.singletonList(stream);
+  }
+
 }

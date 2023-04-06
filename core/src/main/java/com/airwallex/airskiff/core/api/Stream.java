@@ -4,6 +4,7 @@ import com.airwallex.airskiff.common.functions.NamedSerializableLambda;
 import com.airwallex.airskiff.core.*;
 
 import java.io.Serializable;
+import java.util.List;
 
 public interface Stream<T> extends Serializable {
   /**
@@ -109,4 +110,6 @@ public interface Stream<T> extends Serializable {
   }
 
   Class<T> getClazz();
+
+  List<Stream> upstreams();
 }
