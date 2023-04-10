@@ -40,7 +40,6 @@ dependencies {
   val sparkVersion = "3.3.2"
   val scalaVersion = "2.12"
   implementation("org.apache.flink", "flink-avro", flinkVersion)
-  implementation("org.apache.flink", "flink-connector-kafka", flinkVersion)
   implementation("org.apache.flink", "flink-runtime", flinkVersion)
   implementation("com.google.cloud", "google-cloud-storage", "2.11.3")
   implementation("org.apache.spark:spark-core_${scalaVersion}:${sparkVersion}")
