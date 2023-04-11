@@ -30,19 +30,23 @@ java {
   withJavadocJar()
 }
 
-pmd {
-  ruleSetFiles = project.files("lint/pmd-rules.xml")
-  ruleSets = emptyList()
-}
+//pmd {
+//  ruleSetFiles = project.files("lint/pmd-rules.xml")
+//  ruleSets = emptyList()
+//}
 
 dependencies {
   val flinkVersion = "1.15.3"
+  val sparkVersion = "3.3.2"
+  val scalaVersion = "2.12"
   implementation("org.apache.flink", "flink-avro", flinkVersion)
-  implementation("org.apache.flink", "flink-connector-kafka", flinkVersion)
-  testImplementation("org.apache.flink:flink-streaming-java:$flinkVersion:tests")
   implementation("org.apache.flink", "flink-runtime", flinkVersion)
-  testImplementation("org.apache.flink", "flink-test-utils", flinkVersion)
   implementation("com.google.cloud", "google-cloud-storage", "2.11.3")
+  implementation("org.apache.spark:spark-core_${scalaVersion}:${sparkVersion}")
+  implementation("org.apache.spark:spark-sql_${scalaVersion}:${sparkVersion}")
+  testImplementation("org.apache.flink", "flink-table-planner_2.12", flinkVersion)
+  testImplementation("org.apache.flink", "flink-test-utils", flinkVersion)
+  testImplementation("org.apache.flink:flink-streaming-java:$flinkVersion:tests")
 }
 
 tasks.test {

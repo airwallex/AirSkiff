@@ -1,14 +1,44 @@
 package com.airwallex.airskiff.testhelpers;
 
-public class TestData {
-  public final Integer a;
-  public final Integer b;
-  public final String c;
+import java.io.Serializable;
 
-  public TestData(Integer x0, Integer x1, String x2) {
-    a = x0;
-    b = x1;
-    c = x2;
+public class TestData implements Serializable {
+  public Integer a;
+  public Integer b;
+  public String c;
+
+  public TestData() {
+
+  }
+
+  public TestData(Integer a, Integer b, String c) {
+    this.a = a;
+    this.b = b;
+    this.c = c;
+  }
+
+  public Integer getA() {
+    return a;
+  }
+
+  public void setA(Integer a) {
+    this.a = a;
+  }
+
+  public Integer getB() {
+    return b;
+  }
+
+  public void setB(Integer b) {
+    this.b = b;
+  }
+
+  public String getC() {
+    return c;
+  }
+
+  public void setC(String c) {
+    this.c = c;
   }
 
   @Override

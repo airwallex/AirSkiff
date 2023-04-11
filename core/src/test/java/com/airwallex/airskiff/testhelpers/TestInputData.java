@@ -31,6 +31,22 @@ public class TestInputData implements Comparable<TestInputData>, Serializable {
     return "TestInputData{" + "a=" + a + ", b='" + b + '\'' + '}';
   }
 
+  public Integer getA() {
+    return a;
+  }
+
+  public void setA(Integer a) {
+    this.a = a;
+  }
+
+  public String getB() {
+    return b;
+  }
+
+  public void setB(String b) {
+    this.b = b;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (o instanceof TestInputData) {

@@ -3,6 +3,10 @@ package com.airwallex.airskiff.core;
 import com.airwallex.airskiff.common.Pair;
 import com.airwallex.airskiff.common.functions.NamedSerializableLambda;
 import com.airwallex.airskiff.core.api.KStream;
+import com.airwallex.airskiff.core.api.Stream;
+
+import java.util.Collections;
+import java.util.List;
 
 public class MapValueStream<K, T, U> implements KStream<K, U> {
   public final KStream<K, T> stream;
@@ -23,5 +27,10 @@ public class MapValueStream<K, T, U> implements KStream<K, U> {
   @Override
   public Class getClazz() {
     return Pair.class;
+  }
+
+  @Override
+  public List<Stream> parentStreams() {
+    return Collections.singletonList(stream);
   }
 }

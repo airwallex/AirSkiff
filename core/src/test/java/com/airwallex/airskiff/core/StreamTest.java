@@ -10,7 +10,10 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.junit.jupiter.api.Assertions;
 
 import java.time.Duration;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Collectors;
 
 @PropertyDefaults(tries = 10)
@@ -80,7 +83,6 @@ public class StreamTest {
 
     var list = doubleList(data);
     list.sort(Comparator.comparing(o -> o.f0));
-
     runner().executeAndCheck(source -> source.keyBy(t -> t.b, String.class).sum(new TestMonoid()).values(),
       list,
       true,
@@ -126,7 +128,7 @@ public class StreamTest {
       data.stream().map(t -> new Tuple2<>(t.f0 % 10000, new TestInputData(t.f1.a % 1000))).collect(Collectors.toList());
 
     runner().executeAndCheck(
-      source -> source.sql("SELECT CAST(b AS INT), ABS(a * 2), CAST((a * 2) AS VARCHAR) from " + tableName,
+      source -> source.map(t -> t, TestInputData.class).sql("SELECT CAST(b AS INT) as a, ABS(a) as b, CAST(a AS VARCHAR(64)) as c from " + tableName,
         tableName,
         TestData.class
       ),
@@ -153,7 +155,6 @@ public class StreamTest {
     if (data.isEmpty()) {
       return;
     }
-
     runner().executeAndCheck(source -> source.keyBy(t -> t.b, String.class)
       .mapValue(t -> new TestInputData(t.a, t.b + t.b), TestInputData.class)
       .values(), data, true, false);
@@ -225,7 +226,9 @@ public class StreamTest {
         for (TestInputData id : it) {
           last = id;
         }
-        return Collections.singletonList(last);
+        ArrayList<TestInputData> result = new ArrayList<>();
+        result.add(last);
+        return result;
       }, TestInputData::compareTo, TestInputData.class).values(), data, true, false);
   }
 

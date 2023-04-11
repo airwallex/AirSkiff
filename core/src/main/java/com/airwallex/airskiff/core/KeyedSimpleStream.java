@@ -5,6 +5,9 @@ import com.airwallex.airskiff.common.functions.NamedSerializableLambda;
 import com.airwallex.airskiff.core.api.KStream;
 import com.airwallex.airskiff.core.api.Stream;
 
+import java.util.Collections;
+import java.util.List;
+
 public class KeyedSimpleStream<K, T> implements KStream<K, T> {
   public final Stream<T> stream;
   public final NamedSerializableLambda<T, K> toKey;
@@ -24,5 +27,10 @@ public class KeyedSimpleStream<K, T> implements KStream<K, T> {
   @Override
   public Class getClazz() {
     return Pair.class;
+  }
+
+  @Override
+  public List<Stream> parentStreams() {
+    return Collections.singletonList(stream);
   }
 }
