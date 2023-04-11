@@ -44,11 +44,6 @@ public class Utils {
       return result;
     }
 
-    // circular reference hack
-//    var clazzName = clazz.getName();
-//    if (clazzName.startsWith("org.apache.avro") || clazzName.startsWith("com.airwallex.data")) {
-//      return Encoders.javaSerialization(clazz);
-//    }
     return Encoders.javaSerialization(clazz);
   }
 
