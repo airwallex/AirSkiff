@@ -20,7 +20,7 @@ public class ConcatStream<T> implements Stream<T> {
   }
 
   @Override
-  public List<Stream> upstreams() {
+  public List<Stream> parentStreams() {
     List<Stream> ups = new ArrayList<>();
     ups.add(a);
     ups.add(b);

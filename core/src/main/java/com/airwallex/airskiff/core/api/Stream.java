@@ -111,5 +111,5 @@ public interface Stream<T> extends Serializable {
 
   Class<T> getClazz();
 
-  List<Stream> upstreams();
+  List<Stream> parentStreams();
 }

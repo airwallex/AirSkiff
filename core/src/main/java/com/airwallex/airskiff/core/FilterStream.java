@@ -23,7 +23,7 @@ public class FilterStream<T> implements Stream<T> {
   }
 
   @Override
-  public List<Stream> upstreams() {
+  public List<Stream> parentStreams() {
     return Collections.singletonList(stream);
   }
 }

@@ -30,7 +30,7 @@ public class MapValueStream<K, T, U> implements KStream<K, U> {
   }
 
   @Override
-  public List<Stream> upstreams() {
+  public List<Stream> parentStreams() {
     return Collections.singletonList(stream);
   }
 }

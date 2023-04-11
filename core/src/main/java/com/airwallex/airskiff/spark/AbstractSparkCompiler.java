@@ -100,30 +100,10 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
   }
 
   private <T, U> Dataset compileSql(SqlStream<T, U> op) {
-    Dataset<Tuple2<Long, T>> deserialized = compile(op.stream).map((MapFunction<Tuple2<Long, T>, Tuple2<Long, T>>) v1 -> {
-//        ByteArrayInputStream is = new ByteArrayInputStream(v1);
-//        ObjectInputStream ois = new ObjectInputStream(is);
-//        Tuple2<Long, T> o = (Tuple2<Long, T>) ois.readObject();
-      return v1;
-    }, Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.stream.getClazz())));
+    // forced encoding change
+    Dataset<Tuple2<Long, T>> deserialized = compile(op.stream).map((MapFunction<Tuple2<Long, T>, Tuple2<Long, T>>) v1 -> v1, Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.stream.getClazz())));
     Dataset<Tuple2<Long, T>> dataset = deserialized.as(Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.stream.getClazz())));
 
-//    KryoSerializer serializer = new KryoSerializer(sparkSession.sparkContext().getConf());
-//    String desUdfName = "kryo_deserialize_" + op.operator.getClazz().getName().replaceAll("\\.", "_");
-//    Class<T> c = op.operator.getClazz();
-//    Encoder<T> encoder = Encoders.bean(c);
-//    StructType schema = encoder.schema();
-//    UserDefinedFunction desiFn = udf(
-//      (byte[] bs) -> {
-////        ClassTag<T> ct = ClassManifestFactory.fromClass(op.operator.getClazz());
-////        T result = serializer.newInstance().deserialize(ByteBuffer.wrap(bs), ct);
-//        var bis = new ByteArrayInputStream((byte[]) bs);
-//        var ois = new ObjectInputStream(bis);
-////        return result;
-////      return new Counter(ois.readUTF(), ois.readLong());
-//        return (T) ois.readObject();
-//      }, schema);
-//    sparkSession.udf().register("desiPojo", desiFn);
     try {
       Dataset ds = dataset.withColumn("ts__", dataset.col("_1")).withColumn("row_time__", dataset.col("_1"));
       Field[] fields = op.stream.getClazz().getFields();
@@ -175,29 +155,6 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 
       return singleDs;
 
-
-//      Dataset<Tuple2<Long, U>> dd = fatResult.as(Encoders.tuple(Encoders.LONG(), Utils.encode(op.tc)));
-//      dd.show();
-//      dd.printSchema();
-
-//      Encoder<U> encoder = Encoders.bean(op.tc);
-//      ExpressionEncoder<U> enc = ExpressionEncoder.javaBean(op.tc);
-
-//      return dd;
-//      return fatResult.as(Encoders.tuple(Encoders.LONG(), Utils.encode(op.tc)));
-//      Dataset<Tuple2<Long, U>> finalDs = fatResult.map((MapFunction<Row, Tuple2<Long, U>>) row -> {
-//        try {
-//          U u = (U) op.operator.getClazz().getConstructor().newInstance();
-//          for (Field field : fields) {
-//            field.set(u, row.getAs(field.getName()));
-//          }
-//          return new Tuple2<>(row.getAs("ts__"), u);
-//        } catch (Exception e) {
-//          throw new RuntimeException(e);
-//        }
-//      }, Encoders.tuple(Encoders.LONG(), Utils.encode(op.tc)));
-//      return fatResult;
-//      return finalDs;
     } catch (AnalysisException e) {
       throw new RuntimeException(e);
     }
@@ -228,18 +185,10 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 
     EventTimeBasedSlidingWindow window = (EventTimeBasedSlidingWindow) w;
     long size = window.size().toMillis() + window.slide().toMillis();
-//    org.apache.spark.sql.expressions.WindowSpec windowSpec = org.apache.spark.sql.expressions.Window.
-//      partitionBy("key").
-//      orderBy("ts").
-//      rangeBetween(-size, 0);
 
 
     Class<T> inClz = StreamUtils.kStreamClass(op.stream);
-    Class<U> outClz = op.uc;
     CustomAggregator<T, U> agg = new CustomAggregator<>(op.f, op.uc);
-
-//    Column aggCol = agg.toColumn().apply(finalDs.col("value")).over(windowSpec).as("agg_result");
-//    finalDs.select(aggCol).show();
 
 
     sparkSession.udf().register("riskyAgg", udaf(agg, Utils.encodeBean(inClz)));
@@ -351,10 +300,6 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     });
     Dataset<Tuple2<Long, Pair<K, T>>> ds = summed.map((MapFunction<Tuple2<K, Tuple2<K, Tuple2<Long, T>>>, Tuple2<Long, Pair<K, T>>>) t -> new Tuple2<>(t._2._2._1, new Pair<K, T>(t._2._1, t._2._2._2)), Encoders.tuple(Encoders.LONG(), Utils.encode(pairClass2)));
 
-//    Dataset<Tuple2<K, Tuple2<K, T>>> summed = grouped.groupByKey((MapFunction<Tuple2<K, Pair<Long, T>>, K>>) Tuple2::_1, Utils.encode(op.keyClass()))
-//      .reduceGroups((ReduceFunction<Tuple2<K, T>>) (t1, t2) -> new Tuple2<>(t1._1, op.monoid.plus(t1._2, t2._2)));
-//    return summed.map((MapFunction<Tuple2<K, Tuple2<K, T>>, Tuple2<K, T>>) t -> t._2(),
-//      Encoders.tuple(Utils.encode(op.keyClass()), Utils.encode(StreamUtils.kStreamClass(op.stream))));
     return ds;
   }
 

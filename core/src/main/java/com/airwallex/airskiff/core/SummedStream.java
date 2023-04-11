@@ -28,7 +28,7 @@ public class SummedStream<K, T> implements KStream<K, T> {
   }
 
   @Override
-  public List<Stream> upstreams() {
+  public List<Stream> parentStreams() {
     return Collections.singletonList(stream);
   }
 }

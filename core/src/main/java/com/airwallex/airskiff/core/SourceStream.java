@@ -19,7 +19,7 @@ public class SourceStream<T> implements Stream<T> {
   }
 
   @Override
-  public List<Stream> upstreams() {
+  public List<Stream> parentStreams() {
     return new ArrayList<>();
   }
 }

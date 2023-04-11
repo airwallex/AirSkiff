@@ -39,7 +39,7 @@ public class WindowedStream<K, T, U, W extends Window> implements KStream<K, U> 
   }
 
   @Override
-  public List<Stream> upstreams() {
+  public List<Stream> parentStreams() {
     return Collections.singletonList(stream);
   }
 }

@@ -27,7 +27,7 @@ public class LeftJoinStream<K, T, U> implements KStream<K, Pair<T, U>> {
   }
 
   @Override
-  public List<Stream> upstreams() {
+  public List<Stream> parentStreams() {
     List<Stream> ups = new ArrayList<>();
     ups.add(s1);
     ups.add(s2);

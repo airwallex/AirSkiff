@@ -72,7 +72,7 @@ public class SqlStream<T, U> implements Stream<U> {
   }
 
   @Override
-  public List<Stream> upstreams() {
+  public List<Stream> parentStreams() {
     return Collections.singletonList(stream);
   }
 
