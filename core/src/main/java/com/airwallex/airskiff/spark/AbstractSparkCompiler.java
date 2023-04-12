@@ -6,8 +6,12 @@ import com.airwallex.airskiff.core.*;
 import com.airwallex.airskiff.core.api.KStream;
 import com.airwallex.airskiff.core.api.Stream;
 import com.airwallex.airskiff.core.api.Window;
+import com.airwallex.airskiff.spark.udf.GetAgeFunction;
+import com.airwallex.airskiff.spark.udf.NormalizeNameFunction;
+import com.airwallex.airskiff.spark.udf.UnixTimeFunction;
 import org.apache.spark.api.java.function.*;
 import org.apache.spark.sql.*;
+import org.apache.spark.sql.types.DataTypes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -20,8 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import static org.apache.spark.sql.functions.struct;
-import static org.apache.spark.sql.functions.udaf;
+import static org.apache.spark.sql.functions.*;
 
 public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 
@@ -31,6 +34,11 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 
   public AbstractSparkCompiler(SparkSession sparkSession) {
     this.sparkSession = sparkSession;
+
+    // register custom udf
+    this.sparkSession.udf().register("NormalizeName", udf(new NormalizeNameFunction(), DataTypes.StringType));
+    this.sparkSession.udf().register("GetAge", udf(new GetAgeFunction(), DataTypes.IntegerType));
+    this.sparkSession.udf().register("UnixTime", udf(new UnixTimeFunction(), DataTypes.StringType));
   }
 
 
