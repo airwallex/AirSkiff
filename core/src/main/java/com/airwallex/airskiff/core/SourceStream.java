@@ -7,7 +7,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SourceStream<T> implements Stream<T> {
-  public final Config<T> config;
+  public Config<T> getConfig() {
+    return config;
+  }
+
+  public void setConfig(Config<T> config) {
+    this.config = config;
+  }
+
+  public Config<T> config;
 
   public SourceStream(Config<T> config) {
     this.config = config;
