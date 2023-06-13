@@ -42,7 +42,8 @@ public class TestCompiler implements Compiler<List<?>> {
 
   public TestCompiler() {
     var home = System.getenv("HOME");
-    h2Url = "jdbc:h2:" + home + "/h2_test_01";
+    String uuid = UUID.randomUUID().toString();
+    h2Url = "jdbc:h2:" + home + "/h2_test_" + uuid;
     try (Connection conn = DriverManager.getConnection(h2Url)) {
       String sql =
         "CREATE ALIAS IF NOT EXISTS UnixTime FOR \"com.airwallex.airskiff.testhelpers.TestCompiler.date\"; ";
