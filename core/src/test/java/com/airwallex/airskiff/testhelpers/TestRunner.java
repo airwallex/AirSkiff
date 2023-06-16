@@ -31,19 +31,10 @@ public class TestRunner {
   public final FlinkRealtimeCompiler realtimeCompiler;
   public final TestCompiler testCompiler;
 
-  public final SparkCompiler sparkCompiler;
-
   public TestRunner() {
-    SparkSession sparkSession = SparkSession.builder()
-      .master("local[*]")
-      .appName("tests")
-      .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
-      .getOrCreate();
-
     this.fsSettings = EnvironmentSettings.newInstance().inStreamingMode().build();
     this.env = StreamExecutionEnvironment.getExecutionEnvironment();
     this.tableEnv = StreamTableEnvironment.create(env, fsSettings);
-    this.sparkCompiler = new SparkCompiler(sparkSession);
     this.batchCompiler = new FlinkBatchCompiler(env, tableEnv);
     this.realtimeCompiler = new FlinkRealtimeCompiler(env, tableEnv);
     this.testCompiler = new TestCompiler();
@@ -65,8 +56,13 @@ public class TestRunner {
   }
 
   public <T> List<scala.Tuple2<Long, T>> runSpark(Stream<T> s, int limit) throws Exception {
+    SparkSession sparkSession = SparkSession.builder()
+      .master("local[*]")
+      .appName("tests")
+      .config("spark.serializer", "org.apache.spark.serializer.JavaSerializer")
+      .getOrCreate();
     Class<T> clz = StreamUtils.clz(s);
-    Dataset<scala.Tuple2<Long, T>> ds = sparkCompiler.compile(s);
+    Dataset<scala.Tuple2<Long, T>> ds = new SparkCompiler(sparkSession).compile(s);
     // This is purely for fixing different serialization issues.
     // For SQL to work, we have to use Encoders.bean
     // For Avro to work we have to use Java serialization, TODO try KRYO
