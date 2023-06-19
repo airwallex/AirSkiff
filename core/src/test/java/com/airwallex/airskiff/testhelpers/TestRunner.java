@@ -6,9 +6,11 @@ import com.airwallex.airskiff.core.StreamUtils;
 import com.airwallex.airskiff.core.api.Stream;
 import com.airwallex.airskiff.flink.FlinkBatchCompiler;
 import com.airwallex.airskiff.flink.FlinkRealtimeCompiler;
+import com.airwallex.airskiff.spark.AbstractSparkCompiler;
 import com.airwallex.airskiff.spark.SparkCompiler;
 import com.airwallex.airskiff.spark.Utils;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
@@ -17,6 +19,8 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.SparkSession;
 import org.junit.jupiter.api.Assertions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Comparator;
 import java.util.List;
@@ -30,10 +34,18 @@ public class TestRunner {
   public final FlinkBatchCompiler batchCompiler;
   public final FlinkRealtimeCompiler realtimeCompiler;
   public final TestCompiler testCompiler;
+  private static final Logger logger = LoggerFactory.getLogger(TestRunner.class);
 
   public TestRunner() {
-    this.fsSettings = EnvironmentSettings.newInstance().inStreamingMode().build();
+
+    Configuration configuration = new Configuration();
+// set low-level key-value options
+    configuration.setString("table.exec.mini-batch.enabled", "true");
+    configuration.setString("table.exec.mini-batch.allow-latency", "20 ms");
+//    configuration.setString("table.exec.mini-batch.size", "5000");
+    this.fsSettings = EnvironmentSettings.newInstance().inStreamingMode().withConfiguration(configuration).build();
     this.env = StreamExecutionEnvironment.getExecutionEnvironment();
+    this.env.setBufferTimeout(5);
     this.tableEnv = StreamTableEnvironment.create(env, fsSettings);
     this.batchCompiler = new FlinkBatchCompiler(env, tableEnv);
     this.realtimeCompiler = new FlinkRealtimeCompiler(env, tableEnv);
@@ -48,11 +60,22 @@ public class TestRunner {
   }
 
   public <T> List<Tuple2<Long, T>> runFlinkBatch(Stream<T> s, int limit) throws Exception {
-    return batchCompiler.compile(s).executeAndCollect(Math.max(limit, 10000));
+    var start = System.currentTimeMillis();
+    var stream = batchCompiler.compile(s);
+    logger.debug("batch compile time: " + (System.currentTimeMillis() - start));
+    start = System.currentTimeMillis();
+    var result = stream.executeAndCollect(Math.max(limit, 10000));
+    logger.debug("batch execute time: " + (System.currentTimeMillis() - start));
+    return result;
   }
 
   public <T> List<Tuple2<Long, T>> runFlinkRealtime(Stream<T> s, int limit) throws Exception {
-    return realtimeCompiler.compile(s).executeAndCollect(Math.max(limit, 10000));
+    var start = System.currentTimeMillis();
+    var stream = realtimeCompiler.compile(s);
+    logger.debug("realtime compile time: " + (System.currentTimeMillis() - start));
+    var result = stream.executeAndCollect(Math.max(limit, 10000));
+    logger.debug("realtime execute time: " + (System.currentTimeMillis() - start));
+    return result;
   }
 
   public <T> List<scala.Tuple2<Long, T>> runSpark(Stream<T> s, int limit) throws Exception {
