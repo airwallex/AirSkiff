@@ -40,8 +40,8 @@ public class TestRunner {
 
     Configuration configuration = new Configuration();
 // set low-level key-value options
-    configuration.setString("table.exec.mini-batch.enabled", "true");
-    configuration.setString("table.exec.mini-batch.allow-latency", "20 ms");
+//    configuration.setString("table.exec.mini-batch.enabled", "true");
+//    configuration.setString("table.exec.mini-batch.allow-latency", "20 ms");
 //    configuration.setString("table.exec.mini-batch.size", "5000");
     this.fsSettings = EnvironmentSettings.newInstance().inStreamingMode().withConfiguration(configuration).build();
     this.env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -62,19 +62,19 @@ public class TestRunner {
   public <T> List<Tuple2<Long, T>> runFlinkBatch(Stream<T> s, int limit) throws Exception {
     var start = System.currentTimeMillis();
     var stream = batchCompiler.compile(s);
-    logger.debug("batch compile time: " + (System.currentTimeMillis() - start));
+    logger.info("batch compile time: " + (System.currentTimeMillis() - start));
     start = System.currentTimeMillis();
     var result = stream.executeAndCollect(Math.max(limit, 10000));
-    logger.debug("batch execute time: " + (System.currentTimeMillis() - start));
+    logger.info("batch execute time: " + (System.currentTimeMillis() - start));
     return result;
   }
 
   public <T> List<Tuple2<Long, T>> runFlinkRealtime(Stream<T> s, int limit) throws Exception {
     var start = System.currentTimeMillis();
     var stream = realtimeCompiler.compile(s);
-    logger.debug("realtime compile time: " + (System.currentTimeMillis() - start));
+    logger.info("realtime compile time: " + (System.currentTimeMillis() - start));
     var result = stream.executeAndCollect(Math.max(limit, 10000));
-    logger.debug("realtime execute time: " + (System.currentTimeMillis() - start));
+    logger.info("realtime execute time: " + (System.currentTimeMillis() - start));
     return result;
   }
 
