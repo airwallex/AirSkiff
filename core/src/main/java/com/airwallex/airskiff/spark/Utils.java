@@ -44,10 +44,18 @@ public class Utils {
       return result;
     }
 
-    return Encoders.javaSerialization(clazz);
+    return Encoders.bean(clazz);
   }
 
   public static <K> Encoder<K> encodeAvro(Class<K> clazz) {
+    Encoder<K> kEncoder = encodeBasics(clazz);
+    if (kEncoder != null) {
+      return kEncoder;
+    }
+    return Encoders.javaSerialization(clazz);
+  }
+
+  public static <K> Encoder<K> encodeJava(Class<K> clazz) {
     Encoder<K> kEncoder = encodeBasics(clazz);
     if (kEncoder != null) {
       return kEncoder;
