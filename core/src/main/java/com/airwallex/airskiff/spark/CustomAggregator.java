@@ -30,7 +30,7 @@ public class CustomAggregator<T, U> extends Aggregator<T, SerializableList<T>, U
 
   @Override
   public SerializableList<T> reduce(SerializableList<T> b, T a) {
-    if (a != null) {
+    if (a != null && b != null) {
       b.getList().add(a);
     }
     return b;
@@ -52,21 +52,28 @@ public class CustomAggregator<T, U> extends Aggregator<T, SerializableList<T>, U
 
   @Override
   public U finish(SerializableList<T> reduction) {
-    if (reduction.getList().isEmpty()) {
+    if (reduction == null || reduction.getList().isEmpty()) {
       return null;
     }
-    ArrayList<U> us = Lists.newArrayList(lambda.apply(reduction.getList()));
+    var result = lambda.apply(reduction.getList());
+    if (result == null) {
+      return null;
+    }
+    ArrayList<U> us = Lists.newArrayList(result);
+    if (us == null || us.isEmpty()) {
+      return null;
+    }
     return us.get(us.size() - 1);
   }
 
   @Override
   public Encoder<SerializableList<T>> bufferEncoder() {
     Class<SerializableList<T>> c = (Class<SerializableList<T>>) new SerializableList<T>(new ArrayList<>()).getClass();
-    return Utils.encode(c);
+    return Utils.encodeJava(c);
   }
 
   @Override
   public Encoder<U> outputEncoder() {
-    return Utils.encodeBean(clz);
+    return Utils.encodeJava(clz);
   }
 }

@@ -11,27 +11,7 @@ import scala.Tuple2;
 import java.util.Arrays;
 import java.util.List;
 
-class Something{
-  public Something(){
-
-  }
-
-  private Long cc;
-
-  public Something(Long cc) {
-    this.cc = cc;
-  }
-
-  public Long getCc() {
-    return cc;
-  }
-
-  public void setCc(Long cc) {
-    this.cc = cc;
-  }
-}
-
-public class LocalSparkSQLExample {
+public class LocalSparkUnion {
 
 
   public static void main(String[] args) {
@@ -42,15 +22,18 @@ public class LocalSparkSQLExample {
     SparkLocalTextConfig config = new SparkLocalTextConfig("core/src/main/resources/localinput.txt");
 
 
-    Stream<Something> op = new SourceStream<>(config)
+    Stream<Counter> op1 = new SourceStream<>(config)
       .flatMap(x -> Arrays.asList(x.split("\\s")), String.class)
-      .map(x -> new Counter(x, 1L), Counter.class)
-      .sql("SELECT c as cc FROM text",
-        "text", Something.class);
+      .map(x -> new Counter(x, 1L), Counter.class);
+    Stream<Counter> op2 = new SourceStream<>(config)
+      .flatMap(x -> Arrays.asList(x.split("\\s")), String.class)
+      .map(x -> new Counter(x, 1L), Counter.class);
 
 
-    Dataset ds = new AbstractSparkCompiler(spark).compile(op);
+    Dataset ds = new AbstractSparkCompiler(spark).compile(op1.union(op2));
     ds.explain();
     ds.show();
+    List<Tuple2<String, Counter>> first = ds.collectAsList();
+    System.out.println(first);
   }
 }

@@ -9,19 +9,21 @@ import com.airwallex.airskiff.core.api.Window;
 import com.airwallex.airskiff.spark.udf.GetAgeFunction;
 import com.airwallex.airskiff.spark.udf.NormalizeNameFunction;
 import com.airwallex.airskiff.spark.udf.UnixTimeFunction;
+import org.apache.hadoop.shaded.org.apache.commons.lang3.StringUtils;
 import org.apache.spark.api.java.function.*;
 import org.apache.spark.sql.*;
+import org.apache.spark.sql.expressions.UserDefinedFunction;
+import org.apache.spark.sql.expressions.WindowSpec;
 import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructField;
+import org.apache.spark.sql.types.StructType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
 import scala.Tuple3;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
 import static org.apache.spark.sql.functions.*;
@@ -107,68 +109,148 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     return dataset;
   }
 
+  public boolean subColumnExists(Dataset<Row> ds, String col, String subCol) {
+    StructField sf = ds.schema().apply(col);
+    var dt = sf.dataType();
+    if (dt instanceof StructType) {
+      StructType structType = (StructType) dt;
+      return Arrays.stream(structType.fieldNames())
+        .anyMatch(name -> name.equals(subCol));
+    }
+    return false;
+  }
+
+  public String replaceCountDistinct(String input) {
+    return input.replaceAll("(?i)count\\(\\s*distinct\\s+(\\w+)\\)", "approx_count_distinct($1)");
+  }
+
   private <T, U> Dataset compileSql(SqlStream<T, U> op) {
     // forced encoding change
-    Dataset<Tuple2<Long, T>> deserialized = compile(op.stream).map((MapFunction<Tuple2<Long, T>, Tuple2<Long, T>>) v1 -> v1, Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.stream.getClazz())));
-    Dataset<Tuple2<Long, T>> dataset = deserialized.as(Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.stream.getClazz())));
-
-    try {
-      Dataset ds = dataset.withColumn("ts__", dataset.col("_1")).withColumn("row_time__", dataset.col("_1"));
-      Field[] fields = op.stream.getClazz().getFields();
-      for (Field field : fields) {
-        ds = ds.withColumn(field.getName(), ds.col("_2." + field.getName()));
-      }
-      // avoid duplicates
-      sparkSession.catalog().dropTempView(op.tableName);
-      ds.createTempView(op.tableName);
-      String query = op.sql;
-      if (Pattern.compile("DAY\\(\\d+\\)").matcher(query).find()) {
-        query = query.replaceAll("DAY\\(\\d+\\)", "DAY");
-      }
-      String select = query.substring(0, 6);
-      String tempSql = query.replaceFirst(select, select + " ts__,");
-      Dataset<Row> fatResult = sparkSession.sql(tempSql);
-
-
-      List<Column> cols = new ArrayList<>();
-      List<String> colStrs = new ArrayList<>();
-      for (String col : fatResult.columns()) {
-        if (!col.equals("ts__")) {
-          cols.add(new Column(col));
-          colStrs.add(col);
-        }
-      }
-
-      Column[] cc = new Column[cols.size()];
-      cols.toArray(cc);
-      Dataset<Row> fatDs = fatResult.withColumn("data", struct(cc));
-
-
-      for (String col : colStrs) {
-        fatDs = fatDs.drop(col);
-      }
-
-      fatDs = fatDs.drop("row_time__");
-      fatDs = fatDs.withColumnRenamed("data", "_2");
-      fatDs = fatDs.withColumnRenamed("ts__", "_1");
-
-      fatDs.printSchema();
-      fatDs.show();
-
-
-      Encoder<U> encoder = Utils.encodeBean(op.tc);
-      Dataset<Tuple2<Long, U>> singleDs = fatDs.as(Encoders.tuple(Encoders.LONG(), encoder));
-      singleDs.printSchema();
-      singleDs.show();
-
-      return singleDs;
-
-    } catch (AnalysisException e) {
-      throw new RuntimeException(e);
+    Dataset<Tuple2<Long, T>> dataset = compile(op.stream).map((MapFunction<Tuple2<Long, T>, Tuple2<Long, T>>) v1 -> v1, Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.stream.getClazz())));
+    dataset.printSchema();
+    dataset.show();
+    var debugDir = this.sparkSession.conf().contains("AIRSKIFF_DEBUG_DIR") ? this.sparkSession.conf().get("AIRSKIFF_DEBUG_DIR") : null;
+    if (!StringUtils.isBlank(debugDir)) {
+      dataset.coalesce(1).write().format("json").save(debugDir + "/sql-input-" + UUID.randomUUID().toString());
     }
+
+    Dataset ds = dataset.withColumn("ts__", dataset.col("_1"));
+    ds = ds.withColumn("row_time__",
+      to_timestamp(from_unixtime(ds.col("_1").divide(1000))));
+    Field[] fields = op.stream.getClazz().getDeclaredFields();
+    for (Field field : fields) {
+      ds = ds.withColumn(field.getName(), ds.col("_2." + field.getName()));
+    }
+    // avoid duplicates
+    ds.createOrReplaceTempView(op.tableName);
+    String query = op.sql;
+    if (Pattern.compile("DAY\\(\\d+\\)").matcher(query).find()) {
+      query = query.replaceAll("DAY\\(\\d+\\)", "DAY");
+    }
+    query = replaceCountDistinct(query);
+    String select = query.substring(0, 6);
+    String tempSql = query.replaceFirst(select, select + " ts__,");
+    Dataset<Row> fatResult = sparkSession.sql(tempSql);
+    fatResult.show();
+    fatResult.printSchema();
+    System.out.println("fatResult count:" + fatResult.count());
+
+    Field[] outFields = op.tc.getDeclaredFields();
+
+    List<Column> cols = new ArrayList<>();
+    for (Field outField : outFields) {
+      cols.add(new Column(outField.getName()));
+    }
+
+    Column[] cc = new Column[cols.size()];
+    cc = cols.toArray(cc);
+    Dataset<Row> fatDs = fatResult.withColumn("_tempDataStruct", struct(cc));
+    fatResult.show();
+    fatResult.printSchema();
+
+
+    // drop previously added columns
+    for (Field prevField : fields) {
+      fatDs = fatDs.drop(prevField.getName());
+    }
+
+    // drop generated columns
+    for (Field prevField : outFields) {
+      fatDs = fatDs.drop(prevField.getName());
+    }
+
+
+    fatDs = fatDs.drop("row_time__");
+    fatDs = fatDs.withColumnRenamed("_tempDataStruct", "_2");
+    fatDs = fatDs.withColumnRenamed("ts__", "_1");
+
+    fatDs.show();
+    fatDs.printSchema();
+
+
+    Encoder<U> encoder = Utils.encodeBean(op.tc);
+    Dataset<Tuple2<Long, U>> singleDs = fatDs.as(Encoders.tuple(Encoders.LONG(), encoder));
+    singleDs.printSchema();
+    singleDs.show();
+    if (!StringUtils.isBlank(debugDir)) {
+      singleDs.coalesce(1).write().format("json").save(debugDir + "/sql-output-" + UUID.randomUUID().toString());
+    }
+    return singleDs;
+
   }
 
   private <K, T, U, W extends Window> Dataset compileWindowed(WindowedStream<K, T, U, W> op) {
+    Dataset<Tuple2<Long, Pair<K, T>>> ds = compile(op.stream);
+    Encoder<Tuple3<Long, K, T>> expandedEncoder = Encoders.tuple(Encoders.LONG(), Utils.encode(op.keyClass()), Utils.encodeBean(StreamUtils.kStreamClass(op.stream)));
+    Dataset<Tuple3<Long, K, T>> expanded = ds.map((MapFunction<Tuple2<Long, Pair<K, T>>, Tuple3<Long, K, T>>) t -> {
+      return new Tuple3<>(t._1(), t._2().l, t._2().r);
+    }, expandedEncoder);
+
+    var debugDir = this.sparkSession.conf().contains("AIRSKIFF_DEBUG_DIR") ? this.sparkSession.conf().get("AIRSKIFF_DEBUG_DIR") : null;
+    if (!StringUtils.isBlank(debugDir)) {
+      expanded.coalesce(1).write().format("json").save(debugDir + "/window-input-" + UUID.randomUUID().toString());
+    }
+
+
+    final Window w = op.window;
+    EventTimeBasedSlidingWindow window = (EventTimeBasedSlidingWindow) w;
+    long size = window.size().toMillis() + window.slide().toMillis();
+    WindowSpec windowSpec = org.apache.spark.sql.expressions.Window.partitionBy("_2").orderBy("_1").rowsBetween(-size, 0);
+    Class<T> inClz = StreamUtils.kStreamClass(op.stream);
+    CustomAggregator<T, U> agg = new CustomAggregator<>(op.f, op.uc);
+    UserDefinedFunction udfAgg = functions.udaf(agg, Utils.encode(inClz));
+    var customAgg = "risk_custom_agg_" + new Date().getTime();
+    sparkSession.udf().register(customAgg, udfAgg);
+    expanded.printSchema();
+    expanded.show();
+
+    // let's assume U is a composite type
+    String valueExpr = "_3.*";
+    // primitive type
+    if (op.uc == String.class || op.uc == Boolean.class || op.uc == Integer.class || op.uc == Long.class || op.uc == Double.class || op.uc == Float.class) {
+      valueExpr = "_3";
+    }
+    // Apply aggregation within the window
+    Dataset<Row> result = expanded.withColumn("agg_result", callUDF(customAgg, col(valueExpr)).over(windowSpec));
+    result.write().format("json").save("/tmp/agg-result"+UUID.randomUUID().toString());
+    result.show();
+    result.printSchema();
+    result = result.filter(col("agg_result").isNotNull());
+    Dataset<Tuple3<Long, K, U>> typedDs = result.select("_1", "_2", "agg_result").as(Encoders.tuple(Encoders.LONG(), Utils.encodeJava(op.keyClass()), Utils.encodeJava(op.uc)));
+
+    if (!StringUtils.isBlank(debugDir)) {
+      typedDs.coalesce(1).write().format("json").save(debugDir + "/window-output-" + UUID.randomUUID().toString());
+    }
+
+    Class<Pair<K, U>> pairClass2 = (Class<Pair<K, U>>) new Pair<K, U>().getClass();
+    Dataset<Tuple2<Long, Pair<K, U>>> finalResult = typedDs.map((MapFunction<Tuple3<Long, K, U>, Tuple2<Long, Pair<K, U>>>) t -> {
+      return new Tuple2<>(t._1(), new Pair<>(t._2(), t._3()));
+    }, Encoders.tuple(Encoders.LONG(), Utils.encode(pairClass2)));
+    return finalResult;
+
+  }
+
+  private <K, T, U, W extends Window> Dataset compileWindowedViaSQL(WindowedStream<K, T, U, W> op) {
     Dataset<Tuple2<Long, Pair<K, T>>> ds = compile(op.stream);
     Encoder<Tuple3<Long, K, T>> expandedEncoder = Encoders.tuple(Encoders.LONG(), Utils.encode(op.keyClass()), Utils.encodeBean(StreamUtils.kStreamClass(op.stream)));
     Dataset<Tuple3<Long, K, T>> expanded = ds.map((MapFunction<Tuple2<Long, Pair<K, T>>, Tuple3<Long, K, T>>) t -> {
@@ -201,22 +283,18 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 
     sparkSession.udf().register("riskyAgg", udaf(agg, Utils.encodeBean(inClz)));
     String tempTableName = "windowedTempTable";
-    try {
-      sparkSession.catalog().dropTempView(tempTableName);
-      rowDs.createTempView(tempTableName);
-      rowDs.show();
-      rowDs.printSchema();
-      String query = "select ts, key, riskyAgg(" + valueExpr + ") over (PARTITION BY key ORDER BY ts RANGE BETWEEN " + size + " PRECEDING AND CURRENT ROW) as agg_result from " + tempTableName;
-      Dataset<Row> sqlResult = sparkSession.sql(query);
-      Dataset<Tuple3<Long, K, U>> typedDs = sqlResult.as(Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.keyClass()), Utils.encodeBean(op.uc)));
-      Class<Pair<K, U>> pairClass2 = (Class<Pair<K, U>>) new Pair<K, U>().getClass();
-      Dataset<Tuple2<Long, Pair<K, U>>> finalResult = typedDs.map((MapFunction<Tuple3<Long, K, U>, Tuple2<Long, Pair<K, U>>>) t -> {
-        return new Tuple2<>(t._1(), new Pair<>(t._2(), t._3()));
-      }, Encoders.tuple(Encoders.LONG(), Utils.encode(pairClass2)));
-      return finalResult;
-    } catch (AnalysisException e) {
-      throw new RuntimeException(e);
-    }
+    rowDs.createOrReplaceTempView(tempTableName);
+    rowDs.show();
+    rowDs.printSchema();
+    String query = "select ts, key, riskyAgg(" + valueExpr + ") over (PARTITION BY key ORDER BY ts RANGE BETWEEN " + size + " PRECEDING AND CURRENT ROW) as agg_result from " + tempTableName;
+    Dataset<Row> sqlResult = sparkSession.sql(query);
+    Dataset<Tuple3<Long, K, U>> typedDs = sqlResult.as(Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.keyClass()), Utils.encodeBean(op.uc)));
+    Class<Pair<K, U>> pairClass2 = (Class<Pair<K, U>>) new Pair<K, U>().getClass();
+    Dataset<Tuple2<Long, Pair<K, U>>> finalResult = typedDs.map((MapFunction<Tuple3<Long, K, U>, Tuple2<Long, Pair<K, U>>>) t -> {
+      return new Tuple2<>(t._1(), new Pair<>(t._2(), t._3()));
+    }, Encoders.tuple(Encoders.LONG(), Utils.encode(pairClass2)));
+    return finalResult;
+
   }
 
   private <K, T, U> Dataset compileLeftJoin(LeftJoinStream op) {
@@ -240,7 +318,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
       return new KeyedItem<>(t._1(), t._2().l, null, t._2().r);
     }, Encoders.javaSerialization(kiClz));
 
-    Dataset<KeyedItem<K, T, U>> holyUnion = expanded2.union(expanded1);
+    Dataset<KeyedItem<K, T, U>> holyUnion = expanded2.unionByName(expanded1);
     holyUnion.show();
     holyUnion.printSchema();
 
@@ -287,11 +365,17 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
   private <T> Dataset<Tuple2<Long, T>> compileFilter(FilterStream<T> op) {
     Encoder<Tuple2<Long, T>> encoders = Encoders.tuple(Encoders.LONG(), Utils.encode(op.stream.getClazz()));
     Dataset<Tuple2<Long, T>> ds = compile(op.stream).as(encoders);
-    return ds.filter((FilterFunction<Tuple2<Long, T>>) t -> op.p.apply(t._2));
+    return ds.filter((FilterFunction<Tuple2<Long, T>>) t -> {
+      var result = op.p.apply(t._2);
+      return result;
+    });
   }
 
   private <T> Dataset<Tuple2<Long, T>> compileConcat(ConcatStream<T> operator) {
-    return compile(operator.a).unionAll(compile(operator.b));
+    var a = compile(operator.a).as(Encoders.tuple(Encoders.LONG(), Utils.encode(operator.getClazz())));
+    var b = compile(operator.b).as(Encoders.tuple(Encoders.LONG(), Utils.encode(operator.getClazz())));
+    // This is necessary because union requires position of columns to be the same
+    return a.unionByName(b);
   }
 
   private <K, T> Dataset<Tuple2<Long, Pair<K, T>>> compileSum(SummedStream<K, T> op) {
