@@ -214,8 +214,8 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 
     final Window w = op.window;
     EventTimeBasedSlidingWindow window = (EventTimeBasedSlidingWindow) w;
-    long size = window.size().toMillis() + window.slide().toMillis();
-    WindowSpec windowSpec = org.apache.spark.sql.expressions.Window.partitionBy("_2").orderBy("_1").rowsBetween(-size, 0);
+    long size = window.size().toMillis();
+    WindowSpec windowSpec = org.apache.spark.sql.expressions.Window.partitionBy("_2").orderBy("_1").rangeBetween(-size, 0);
     Class<T> inClz = StreamUtils.kStreamClass(op.stream);
     CustomAggregator<T, U> agg = new CustomAggregator<>(op.f, op.uc);
     UserDefinedFunction udfAgg = functions.udaf(agg, Utils.encode(inClz));
