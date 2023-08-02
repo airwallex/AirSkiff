@@ -26,8 +26,6 @@ public class DistinctCountAggregator<T> extends Aggregator<T, HashSet<T>, Intege
 
   @Override
   public HashSet<T> merge(HashSet<T> buffer1, HashSet<T> buffer2) {
-    System.out.println(buffer1 + "," + buffer1.size());
-    System.out.println(buffer2 + "," + buffer2.size());
     if (buffer1 == null) {
       return buffer2;
     }
