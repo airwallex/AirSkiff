@@ -24,12 +24,12 @@ import scala.Tuple3;
 
 import java.lang.reflect.Field;
 import java.util.*;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.apache.spark.sql.functions.*;
 
 public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
-
   private final SparkSession sparkSession;
   private static final Logger logger = LoggerFactory.getLogger(AbstractSparkCompiler.class);
 
@@ -124,6 +124,22 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     return input.replaceAll("(?i)count\\(\\s*distinct\\s+(\\w+)\\)", "approx_count_distinct($1)");
   }
 
+  public String replaceCountDistinctWithAgg(String input) {
+    return input.replaceAll("(?i)count\\(\\s*distinct\\s+(\\w+)\\)", "DistinctCountAggregator($1)");
+  }
+
+  public static String extractDistinctKeyword(String query) {
+    String pattern = "count\\(\\s*distinct\\s*([^\\)]+)\\s*\\)";
+    Pattern compiledPattern = Pattern.compile(pattern, Pattern.CASE_INSENSITIVE);
+    Matcher matcher = compiledPattern.matcher(query);
+
+    if (matcher.find()) {
+      return matcher.group(1).trim();
+    } else {
+      return null;
+    }
+  }
+
   private <T, U> Dataset compileSql(SqlStream<T, U> op) {
     // forced encoding change
     Dataset<Tuple2<Long, T>> dataset = compile(op.stream).map((MapFunction<Tuple2<Long, T>, Tuple2<Long, T>>) v1 -> v1, Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.stream.getClazz())));
@@ -141,19 +157,41 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     for (Field field : fields) {
       ds = ds.withColumn(field.getName(), ds.col("_2." + field.getName()));
     }
+    logger.info("ds:");
+    ds.printSchema();
+    ds.show();
     // avoid duplicates
     ds.createOrReplaceTempView(op.tableName);
     String query = op.sql;
     if (Pattern.compile("DAY\\(\\d+\\)").matcher(query).find()) {
       query = query.replaceAll("DAY\\(\\d+\\)", "DAY");
     }
-    query = replaceCountDistinct(query);
+
+    var distinctKeyword = extractDistinctKeyword(query);
+    if (distinctKeyword != null) {
+      Encoder aggInEncoder = null;
+      logger.info("distinctKeyword:" + distinctKeyword);
+      StructField sf = ds.schema().apply(distinctKeyword);
+      var dt = sf.dataType();
+      if (dt == DataTypes.IntegerType) {
+        aggInEncoder = Encoders.INT();
+      } else if (dt == DataTypes.LongType) {
+        aggInEncoder = Encoders.LONG();
+      } else if (dt == DataTypes.StringType) {
+        aggInEncoder = Encoders.STRING();
+      }
+      UserDefinedFunction udfAgg = functions.udaf(new DistinctCountAggregator<>(), aggInEncoder);
+      sparkSession.udf().register("DistinctCountAggregator", udfAgg);
+      query = replaceCountDistinctWithAgg(query);
+    }
+
     String select = query.substring(0, 6);
     String tempSql = query.replaceFirst(select, select + " ts__,");
+    logger.info("tempSql:" + tempSql);
     Dataset<Row> fatResult = sparkSession.sql(tempSql);
     fatResult.show();
     fatResult.printSchema();
-    System.out.println("fatResult count:" + fatResult.count());
+    logger.info("fatResult count:" + fatResult.count());
 
     Field[] outFields = op.tc.getDeclaredFields();
 
@@ -232,7 +270,9 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     }
     // Apply aggregation within the window
     Dataset<Row> result = expanded.withColumn("agg_result", callUDF(customAgg, col(valueExpr)).over(windowSpec));
-    result.write().format("json").save("/tmp/agg-result"+UUID.randomUUID().toString());
+    if (!StringUtils.isBlank(debugDir)) {
+      result.write().format("json").save("/tmp/agg-result" + UUID.randomUUID().toString());
+    }
     result.show();
     result.printSchema();
     result = result.filter(col("agg_result").isNotNull());
