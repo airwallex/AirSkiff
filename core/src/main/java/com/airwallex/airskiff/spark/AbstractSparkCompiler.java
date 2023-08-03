@@ -270,7 +270,9 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     }
     // Apply aggregation within the window
     Dataset<Row> result = expanded.withColumn("agg_result", callUDF(customAgg, col(valueExpr)).over(windowSpec));
-    result.write().format("json").save("/tmp/agg-result" + UUID.randomUUID().toString());
+    if (!StringUtils.isBlank(debugDir)) {
+      result.write().format("json").save("/tmp/agg-result" + UUID.randomUUID().toString());
+    }
     result.show();
     result.printSchema();
     result = result.filter(col("agg_result").isNotNull());
