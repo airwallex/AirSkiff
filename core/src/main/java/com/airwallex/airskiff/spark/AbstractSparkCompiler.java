@@ -44,10 +44,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     this.sparkSession.udf().register("GetAge", udf(new GetAgeFunction(), DataTypes.IntegerType));
     this.sparkSession.udf().register("UnixTime", udf(new UnixTimeFunction(), DataTypes.StringType));
     debugDir = this.sparkSession.conf().contains("AIRSKIFF_DEBUG_DIR") ? this.sparkSession.conf().get("AIRSKIFF_DEBUG_DIR") : null;
-    if (debugDir != null) {
-      DEBUG = true;
-    }
-
+    DEBUG = debugDir != null;
   }
 
 
@@ -112,7 +109,9 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
   private <K, T, U> Dataset compileMapValue(MapValueStream<K, T, U> operator) {
     Dataset<Tuple2<Long, Pair<K, T>>> ks1 = compile(operator.stream);
     Class<Pair<K, U>> pairClass = (Class<Pair<K, U>>) (Class<?>) Pair.class;
-    Dataset<Tuple2<Long, Pair<K, U>>> dataset = ks1.map((MapFunction<Tuple2<Long, Pair<K, T>>, Tuple2<Long, Pair<K, U>>>) v1 -> new Tuple2<>(v1._1(), new Pair(v1._2().l, operator.fn.apply(v1._2.r))), Encoders.tuple(Encoders.LONG(), Utils.encode(pairClass)));
+    Dataset<Tuple2<Long, Pair<K, U>>> dataset = ks1.map((MapFunction<Tuple2<Long, Pair<K, T>>, Tuple2<Long, Pair<K, U>>>)
+        v1 -> new Tuple2<>(v1._1(), new Pair(v1._2().l, operator.fn.apply(v1._2.r))),
+      Encoders.tuple(Encoders.LONG(), Utils.encode(pairClass)));
     return dataset;
   }
 
@@ -149,7 +148,8 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 
   private <T, U> Dataset compileSql(SqlStream<T, U> op) {
     // forced encoding change
-    Dataset<Tuple2<Long, T>> dataset = compile(op.stream).map((MapFunction<Tuple2<Long, T>, Tuple2<Long, T>>) v1 -> v1, Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.stream.getClazz())));
+    Dataset<Tuple2<Long, T>> dataset = compile(op.stream).map((MapFunction<Tuple2<Long, T>, Tuple2<Long, T>>) v1 -> v1,
+      Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.stream.getClazz())));
     dataset.printSchema();
     dataset.show();
     if (!StringUtils.isBlank(debugDir)) {
@@ -199,7 +199,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     logger.info("tempSql:" + tempSql);
     Dataset<Row> fatResult = sparkSession.sql(tempSql);
 
-    if (DEBUG){
+    if (DEBUG) {
       fatResult.show();
       fatResult.printSchema();
       logger.info("fatResult count:" + fatResult.count());
@@ -238,7 +238,6 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
       fatDs.show();
       fatDs.printSchema();
     }
-
 
     Encoder<U> encoder = Utils.encodeBean(op.tc);
     Dataset<Tuple2<Long, U>> singleDs = fatDs.as(Encoders.tuple(Encoders.LONG(), encoder));
