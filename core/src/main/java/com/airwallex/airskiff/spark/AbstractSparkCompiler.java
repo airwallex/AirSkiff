@@ -32,6 +32,8 @@ import static org.apache.spark.sql.functions.*;
 public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
   private final SparkSession sparkSession;
   private static final Logger logger = LoggerFactory.getLogger(AbstractSparkCompiler.class);
+  private static String debugDir = null;
+  private static boolean DEBUG = false;
 
 
   public AbstractSparkCompiler(SparkSession sparkSession) {
@@ -41,6 +43,8 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     this.sparkSession.udf().register("NormalizeName", udf(new NormalizeNameFunction(), DataTypes.StringType));
     this.sparkSession.udf().register("GetAge", udf(new GetAgeFunction(), DataTypes.IntegerType));
     this.sparkSession.udf().register("UnixTime", udf(new UnixTimeFunction(), DataTypes.StringType));
+    debugDir = this.sparkSession.conf().contains("AIRSKIFF_DEBUG_DIR") ? this.sparkSession.conf().get("AIRSKIFF_DEBUG_DIR") : null;
+    DEBUG = debugDir != null;
   }
 
 
@@ -105,7 +109,9 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
   private <K, T, U> Dataset compileMapValue(MapValueStream<K, T, U> operator) {
     Dataset<Tuple2<Long, Pair<K, T>>> ks1 = compile(operator.stream);
     Class<Pair<K, U>> pairClass = (Class<Pair<K, U>>) (Class<?>) Pair.class;
-    Dataset<Tuple2<Long, Pair<K, U>>> dataset = ks1.map((MapFunction<Tuple2<Long, Pair<K, T>>, Tuple2<Long, Pair<K, U>>>) v1 -> new Tuple2<>(v1._1(), new Pair(v1._2().l, operator.fn.apply(v1._2.r))), Encoders.tuple(Encoders.LONG(), Utils.encode(pairClass)));
+    Dataset<Tuple2<Long, Pair<K, U>>> dataset = ks1.map((MapFunction<Tuple2<Long, Pair<K, T>>, Tuple2<Long, Pair<K, U>>>)
+        v1 -> new Tuple2<>(v1._1(), new Pair(v1._2().l, operator.fn.apply(v1._2.r))),
+      Encoders.tuple(Encoders.LONG(), Utils.encode(pairClass)));
     return dataset;
   }
 
@@ -142,10 +148,10 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 
   private <T, U> Dataset compileSql(SqlStream<T, U> op) {
     // forced encoding change
-    Dataset<Tuple2<Long, T>> dataset = compile(op.stream).map((MapFunction<Tuple2<Long, T>, Tuple2<Long, T>>) v1 -> v1, Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.stream.getClazz())));
+    Dataset<Tuple2<Long, T>> dataset = compile(op.stream).map((MapFunction<Tuple2<Long, T>, Tuple2<Long, T>>) v1 -> v1,
+      Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.stream.getClazz())));
     dataset.printSchema();
     dataset.show();
-    var debugDir = this.sparkSession.conf().contains("AIRSKIFF_DEBUG_DIR") ? this.sparkSession.conf().get("AIRSKIFF_DEBUG_DIR") : null;
     if (!StringUtils.isBlank(debugDir)) {
       dataset.coalesce(1).write().format("json").save(debugDir + "/sql-input-" + UUID.randomUUID().toString());
     }
@@ -157,9 +163,12 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     for (Field field : fields) {
       ds = ds.withColumn(field.getName(), ds.col("_2." + field.getName()));
     }
-    logger.info("ds:");
-    ds.printSchema();
-    ds.show();
+
+    if (DEBUG) {
+      logger.info("ds:");
+      ds.printSchema();
+      ds.show();
+    }
     // avoid duplicates
     ds.createOrReplaceTempView(op.tableName);
     String query = op.sql;
@@ -189,9 +198,12 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     String tempSql = query.replaceFirst(select, select + " ts__,");
     logger.info("tempSql:" + tempSql);
     Dataset<Row> fatResult = sparkSession.sql(tempSql);
-    fatResult.show();
-    fatResult.printSchema();
-    logger.info("fatResult count:" + fatResult.count());
+
+    if (DEBUG) {
+      fatResult.show();
+      fatResult.printSchema();
+      logger.info("fatResult count:" + fatResult.count());
+    }
 
     Field[] outFields = op.tc.getDeclaredFields();
 
@@ -222,15 +234,16 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     fatDs = fatDs.withColumnRenamed("_tempDataStruct", "_2");
     fatDs = fatDs.withColumnRenamed("ts__", "_1");
 
-    fatDs.show();
-    fatDs.printSchema();
-
+    if (DEBUG) {
+      fatDs.show();
+      fatDs.printSchema();
+    }
 
     Encoder<U> encoder = Utils.encodeBean(op.tc);
     Dataset<Tuple2<Long, U>> singleDs = fatDs.as(Encoders.tuple(Encoders.LONG(), encoder));
-    singleDs.printSchema();
-    singleDs.show();
     if (!StringUtils.isBlank(debugDir)) {
+      singleDs.printSchema();
+      singleDs.show();
       singleDs.coalesce(1).write().format("json").save(debugDir + "/sql-output-" + UUID.randomUUID().toString());
     }
     return singleDs;
@@ -244,11 +257,9 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
       return new Tuple3<>(t._1(), t._2().l, t._2().r);
     }, expandedEncoder);
 
-    var debugDir = this.sparkSession.conf().contains("AIRSKIFF_DEBUG_DIR") ? this.sparkSession.conf().get("AIRSKIFF_DEBUG_DIR") : null;
     if (!StringUtils.isBlank(debugDir)) {
       expanded.coalesce(1).write().format("json").save(debugDir + "/window-input-" + UUID.randomUUID().toString());
     }
-
 
     final Window w = op.window;
     EventTimeBasedSlidingWindow window = (EventTimeBasedSlidingWindow) w;
@@ -259,8 +270,10 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     UserDefinedFunction udfAgg = functions.udaf(agg, Utils.encode(inClz));
     var customAgg = "risk_custom_agg_" + new Date().getTime();
     sparkSession.udf().register(customAgg, udfAgg);
-    expanded.printSchema();
-    expanded.show();
+    if (DEBUG) {
+      expanded.printSchema();
+      expanded.show();
+    }
 
     // let's assume U is a composite type
     String valueExpr = "_3.*";
@@ -273,8 +286,10 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     if (!StringUtils.isBlank(debugDir)) {
       result.write().format("json").save("/tmp/agg-result" + UUID.randomUUID().toString());
     }
-    result.show();
-    result.printSchema();
+    if (DEBUG) {
+      result.show();
+      result.printSchema();
+    }
     result = result.filter(col("agg_result").isNotNull());
     Dataset<Tuple3<Long, K, U>> typedDs = result.select("_1", "_2", "agg_result").as(Encoders.tuple(Encoders.LONG(), Utils.encodeJava(op.keyClass()), Utils.encodeJava(op.uc)));
 
@@ -359,8 +374,11 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     }, Encoders.javaSerialization(kiClz));
 
     Dataset<KeyedItem<K, T, U>> holyUnion = expanded2.unionByName(expanded1);
-    holyUnion.show();
-    holyUnion.printSchema();
+    if (DEBUG) {
+      holyUnion.show();
+      holyUnion.printSchema();
+    }
+
 
     LeftJoinPairMonoid<T, U> leftJoinMonoid = new LeftJoinPairMonoid<T, U>();
     Class<Pair<K, Pair<T, U>>> pairPairClass = (Class<Pair<K, Pair<T, U>>>) (Class<?>) new Pair<K, Pair<T, U>>().getClass();
@@ -385,8 +403,10 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
       return result;
     }, Encoders.javaSerialization(listClz));
 
-    groupResult.printSchema();
-    groupResult.show();
+    if (DEBUG) {
+      groupResult.printSchema();
+      groupResult.show();
+    }
 
     Dataset<Tuple2<Long, Pair<K, Pair<T, U>>>> finalResult = groupResult.flatMap((FlatMapFunction<SerializableList<KeyedItem<K, T, U>>, Tuple2<Long, Pair<K, Pair<T, U>>>>) t -> {
       ArrayList<Tuple2<Long, Pair<K, Pair<T, U>>>> result = new ArrayList<>();
