@@ -28,9 +28,9 @@ allprojects {
   }
 
   dependencies {
-    val flinkVersion = "1.15.3"
-    implementation("com.google.code.gson", "gson", "2.9.0")
-    implementation("com.google.guava", "guava", "31.1-jre")
+    val flinkVersion = "1.17.1"
+    implementation("com.google.code.gson", "gson", "2.10.1")
+    implementation("com.google.guava", "guava", "32.1-jre")
 
     testImplementation(platform("org.junit:junit-bom:5.8.2"))
     testImplementation("org.junit.jupiter", "junit-jupiter", "5.8.2")
@@ -41,10 +41,6 @@ allprojects {
     testImplementation("org.apache.flink", "flink-clients", flinkVersion)
 
     compileOnly("org.apache.flink", "flink-table-planner_2.12", flinkVersion)
-
-    // Specialize log4j
-//    implementation("org.apache.logging.log4j", "log4j-core", "2.17.2")
-//    implementation("org.apache.logging.log4j", "log4j-slf4j-impl", "2.17.2")
   }
 
   tasks.test {
