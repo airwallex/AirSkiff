@@ -241,7 +241,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
 
     Encoder<U> encoder = Utils.encodeBean(op.tc);
     Dataset<Tuple2<Long, U>> singleDs = fatDs.as(Encoders.tuple(Encoders.LONG(), encoder));
-    if (!StringUtils.isBlank(debugDir)) {
+    if (DEBUG) {
       singleDs.printSchema();
       singleDs.show();
       singleDs.coalesce(1).write().format("json").save(debugDir + "/sql-output-" + UUID.randomUUID().toString());
@@ -257,7 +257,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
       return new Tuple3<>(t._1(), t._2().l, t._2().r);
     }, expandedEncoder);
 
-    if (!StringUtils.isBlank(debugDir)) {
+    if (DEBUG) {
       expanded.coalesce(1).write().format("json").save(debugDir + "/window-input-" + UUID.randomUUID().toString());
     }
 
@@ -293,7 +293,7 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     result = result.filter(col("agg_result").isNotNull());
     Dataset<Tuple3<Long, K, U>> typedDs = result.select("_1", "_2", "agg_result").as(Encoders.tuple(Encoders.LONG(), Utils.encodeJava(op.keyClass()), Utils.encodeJava(op.uc)));
 
-    if (!StringUtils.isBlank(debugDir)) {
+    if (DEBUG) {
       typedDs.coalesce(1).write().format("json").save(debugDir + "/window-output-" + UUID.randomUUID().toString());
     }
 
