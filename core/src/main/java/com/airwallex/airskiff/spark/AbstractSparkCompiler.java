@@ -150,9 +150,9 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     // forced encoding change
     Dataset<Tuple2<Long, T>> dataset = compile(op.stream).map((MapFunction<Tuple2<Long, T>, Tuple2<Long, T>>) v1 -> v1,
       Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.stream.getClazz())));
-    dataset.printSchema();
-    dataset.show();
-    if (!StringUtils.isBlank(debugDir)) {
+    if (DEBUG) {
+      dataset.printSchema();
+      dataset.show();
       dataset.coalesce(1).write().format("json").save(debugDir + "/sql-input-" + UUID.randomUUID().toString());
     }
 
@@ -215,9 +215,11 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     Column[] cc = new Column[cols.size()];
     cc = cols.toArray(cc);
     Dataset<Row> fatDs = fatResult.withColumn("_tempDataStruct", struct(cc));
-    fatResult.show();
-    fatResult.printSchema();
 
+    if (DEBUG) {
+      fatResult.show();
+      fatResult.printSchema();
+    }
 
     // drop previously added columns
     for (Field prevField : fields) {
@@ -339,8 +341,10 @@ public class AbstractSparkCompiler implements Compiler<Dataset<?>> {
     sparkSession.udf().register("riskyAgg", udaf(agg, Utils.encodeBean(inClz)));
     String tempTableName = "windowedTempTable";
     rowDs.createOrReplaceTempView(tempTableName);
-    rowDs.show();
-    rowDs.printSchema();
+    if (DEBUG){
+      rowDs.show();
+      rowDs.printSchema();
+    }
     String query = "select ts, key, riskyAgg(" + valueExpr + ") over (PARTITION BY key ORDER BY ts RANGE BETWEEN " + size + " PRECEDING AND CURRENT ROW) as agg_result from " + tempTableName;
     Dataset<Row> sqlResult = sparkSession.sql(query);
     Dataset<Tuple3<Long, K, U>> typedDs = sqlResult.as(Encoders.tuple(Encoders.LONG(), Utils.encodeBean(op.keyClass()), Utils.encodeBean(op.uc)));
