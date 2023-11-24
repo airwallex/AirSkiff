@@ -35,6 +35,7 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Collector;
 
 import java.lang.reflect.Field;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -238,9 +239,11 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
         // 2. remove elements in sorted that is too old
         private void update(List<Tuple2<Long, T>> sorted, Tuple2<Long, T> t) {
           // keep a 14 times of the slide size as a buffer in case we see a late event
+          // buffer is limited to 1 day at most to avoid too large state and checkpoints
           // TODO: revisit this. ideally, we should be able to change the number
           // through a config
-          long lowerBoundInclusive = t.f0 - sw.size().toMillis() - sw.slide().toMillis() * 14;
+          long maxAllowedLateness = Math.min(sw.slide().toMillis() * 14, Duration.ofDays(1).toMillis());
+          long lowerBoundInclusive = t.f0 - sw.size().toMillis() - maxAllowedLateness;
           while (!sorted.isEmpty() && sorted.get(0).f0 < lowerBoundInclusive) {
             sorted.remove(0);
           }
