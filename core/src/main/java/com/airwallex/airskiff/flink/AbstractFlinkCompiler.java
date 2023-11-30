@@ -16,6 +16,7 @@ import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -230,7 +231,16 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
         private transient ListState<Tuple2<Long, T>> sortedElements;
 
         public void open(Configuration parameters) throws Exception {
-          sortedElements = getRuntimeContext().getListState(new ListStateDescriptor<>("elements", tuple2TypeInfo(clz)));
+          long ttl = sw.size().toSeconds() + sw.slide().toSeconds() * 14;
+          StateTtlConfig ttlConfig = StateTtlConfig
+            .newBuilder(org.apache.flink.api.common.time.Time.seconds(ttl))
+            .setUpdateType(StateTtlConfig.UpdateType.OnReadAndWrite)
+            .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
+            .cleanupIncrementally(10, false)
+            .build();
+          ListStateDescriptor<Tuple2<Long, T>> descriptor = new ListStateDescriptor<>("elements", tuple2TypeInfo(clz));
+          descriptor.enableTimeToLive(ttlConfig);
+          sortedElements = getRuntimeContext().getListState(descriptor);
         }
 
         // two things:
