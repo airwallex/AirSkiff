@@ -25,6 +25,6 @@ public class RealtimeWatermarkStrategy<T> implements WatermarkStrategy<T> {
   public WatermarkGenerator<T> createWatermarkGenerator(
     WatermarkGeneratorSupplier.Context context
   ) {
-    return new HybridWatermarkGenerator<>(maxLateness.toMillis(), new EventTimeManager(), Clock.systemUTC());
+    return new HybridWatermarkGenerator<>(maxLateness.toMillis(), new EventTimeManager(), Clock.systemUTC(), 1000);
   }
 }
