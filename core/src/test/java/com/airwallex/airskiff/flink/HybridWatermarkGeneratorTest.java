@@ -29,6 +29,7 @@ import java.util.Random;
 public class HybridWatermarkGeneratorTest {
 
   private final long MAX_DELAY = Duration.ofSeconds(1000).toMillis();
+  private final long ALLOWED_DELAY = Duration.ofSeconds(1).toMillis();
   private List<Watermark> wms;
   private WatermarkOutput output;
   private EventTimeManager eventTimeManager;
@@ -143,6 +144,19 @@ public class HybridWatermarkGeneratorTest {
       Assertions.assertEquals(Long.parseLong(expected), watermark);
     }
     bufferedReaderOutput.close();
+  }
+
+  @Test
+  public void testAllowedLatency() {
+    EventTimeManager lateEventTimeManager = new EventTimeManager();
+    HybridWatermarkGenerator lateGenerator = new HybridWatermarkGenerator<>(MAX_DELAY, lateEventTimeManager, Clock.systemUTC(), ALLOWED_DELAY);
+    for (int i = 0; i < 3; i++) {
+      long eventTime = instant.toEpochMilli();
+      lateGenerator.onEvent(i, eventTime, output);
+      lateGenerator.onPeriodicEmit(output);
+      Assertions.assertTrue(lateEventTimeManager.isCaughtUp());
+      Assertions.assertEquals(eventTime - ALLOWED_DELAY, wms.get(wms.size() - 1).getTimestamp());
+    }
   }
 
   @Disabled

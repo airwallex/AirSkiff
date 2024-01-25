@@ -4,6 +4,7 @@ import com.airwallex.airskiff.common.functions.NamedSerializableLambda;
 import com.airwallex.airskiff.core.*;
 
 import java.io.Serializable;
+import java.time.Duration;
 import java.util.List;
 
 public interface Stream<T> extends Serializable {
@@ -93,6 +94,10 @@ public interface Stream<T> extends Serializable {
    */
   default Stream<T> union(Stream<T> that) {
     return new ConcatStream<>(this, that);
+  }
+
+  default Stream<T> union(Stream<T> that, Duration allowedLatency) {
+    return new ConcatStream<>(this, that, allowedLatency);
   }
 
   /**

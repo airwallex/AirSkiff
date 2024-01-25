@@ -45,7 +45,7 @@ public class HybridWatermarkGenerator<T> implements WatermarkGenerator<T> {
     } else {
       long elapsed = clock.millis() - lastProcessTime;
       if (elapsed >= Constants.TEN_SECONDS.toMillis()) {
-        watermarkOutput.emitWatermark(new Watermark(maxTs));
+        watermarkOutput.emitWatermark(new Watermark(maxTs - allowedLatency));
       } else {
         watermarkOutput.emitWatermark(new Watermark(maxTs - maxDelay));
       }
