@@ -47,10 +47,12 @@ import static org.apache.flink.table.api.Expressions.$;
 public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
   protected final StreamExecutionEnvironment env;
   protected final StreamTableEnvironment tableEnv;
+  protected final Duration allowedLatency;
 
-  public AbstractFlinkCompiler(StreamExecutionEnvironment env, StreamTableEnvironment tableEnv) {
+  public AbstractFlinkCompiler(StreamExecutionEnvironment env, StreamTableEnvironment tableEnv, Duration allowedLatency) {
     this.env = env;
     this.tableEnv = tableEnv;
+    this.allowedLatency = allowedLatency;
     Utils.registerFunctions(this.tableEnv);
   }
 
@@ -177,7 +179,7 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
   }
 
   protected <T> DataStream<Tuple2<Long, T>> compileConcat(ConcatStream<T> stream) {
-    return compile(stream.a).union(compile(stream.b)).assignTimestampsAndWatermarks(Utils.watermark(isBatch(), stream.allowedLatency));
+    return compile(stream.a).union(compile(stream.b)).assignTimestampsAndWatermarks(Utils.watermark(isBatch(), this.allowedLatency));
   }
 
   protected <T> DataStream<Tuple2<Long, T>> compileFilter(FilterStream<T> stream) {
@@ -190,7 +192,7 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
     final var typeInfo = stream.typeInfo;
     return tableEnv.toAppendStream(table, Row.class).map(r -> new Tuple2<>((Long) r.getField(0), mapper.map(r)), typeInfo)
       // watermark and timestamp is lost after table to data stream conversion?
-      .assignTimestampsAndWatermarks(Utils.watermark(isBatch(), Duration.ZERO));
+      .assignTimestampsAndWatermarks(Utils.watermark(isBatch(), this.allowedLatency));
   }
 
   protected <K, T> KeyedStream<Tuple2<Long, Pair<K, T>>, K> compileKS(KStream<K, T> ks) {

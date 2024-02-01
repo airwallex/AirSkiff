@@ -9,18 +9,10 @@ import java.util.List;
 public class ConcatStream<T> implements Stream<T> {
   public final Stream<T> a;
   public final Stream<T> b;
-  public final Duration allowedLatency;
 
   public ConcatStream(Stream<T> a, Stream<T> b) {
     this.a = a;
     this.b = b;
-    this.allowedLatency = Duration.ZERO;
-  }
-
-  public ConcatStream(Stream<T> a, Stream<T> b, Duration allowedLatency) {
-    this.a = a;
-    this.b = b;
-    this.allowedLatency = allowedLatency;
   }
 
   @Override

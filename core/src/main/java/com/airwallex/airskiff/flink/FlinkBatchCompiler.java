@@ -17,6 +17,7 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.util.Collector;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,7 +31,7 @@ public class FlinkBatchCompiler extends AbstractFlinkCompiler {
   public static final TumblingEventTimeWindows WINDOW = TumblingEventTimeWindows.of(Time.days(365 * 10000));
 
   public FlinkBatchCompiler(StreamExecutionEnvironment env, StreamTableEnvironment tableEnv) {
-    super(env, tableEnv);
+    super(env, tableEnv, Duration.ZERO);
     env.setRuntimeMode(RuntimeExecutionMode.BATCH);
   }
 

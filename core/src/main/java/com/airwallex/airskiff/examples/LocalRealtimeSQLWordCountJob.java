@@ -9,6 +9,7 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.Arrays;
 
 public class LocalRealtimeSQLWordCountJob {
@@ -28,7 +29,7 @@ public class LocalRealtimeSQLWordCountJob {
         Counter.class
       );
 
-    new FlinkRealtimeCompiler(env, tableEnv).compile(stream).print();
+    new FlinkRealtimeCompiler(env, tableEnv, Duration.ZERO).compile(stream).print();
     env.execute();
   }
 }
