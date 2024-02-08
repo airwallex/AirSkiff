@@ -12,7 +12,7 @@ public class HybridWatermarkGenerator<T> implements WatermarkGenerator<T> {
   private final Clock clock;
   private long maxTs;
   private long lastProcessTime;
-  private long allowedLatency;
+  private final long allowedLatency;
 
   public HybridWatermarkGenerator(long maxDelay, EventTimeManager eventTimeManager, Clock clock) {
     this.maxDelay = maxDelay;
