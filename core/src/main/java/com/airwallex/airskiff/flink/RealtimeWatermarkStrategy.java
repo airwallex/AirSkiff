@@ -15,16 +15,18 @@ import java.time.Duration;
  */
 public class RealtimeWatermarkStrategy<T> implements WatermarkStrategy<T> {
   private final Duration maxLateness;
+  private final Duration allowedLatency;
 
-  public RealtimeWatermarkStrategy(Duration maxLateness) {
-    assert (!maxLateness.isNegative());
+  public RealtimeWatermarkStrategy(Duration maxLateness, Duration allowedLatency) {
+    assert (!maxLateness.isNegative() && !allowedLatency.isNegative());
     this.maxLateness = maxLateness;
+    this.allowedLatency = allowedLatency;
   }
 
   @Override
   public WatermarkGenerator<T> createWatermarkGenerator(
     WatermarkGeneratorSupplier.Context context
   ) {
-    return new HybridWatermarkGenerator<>(maxLateness.toMillis(), new EventTimeManager(), Clock.systemUTC());
+    return new HybridWatermarkGenerator<>(maxLateness.toMillis(), new EventTimeManager(), Clock.systemUTC(), allowedLatency.toMillis());
   }
 }

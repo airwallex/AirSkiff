@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Assertions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
@@ -48,7 +49,7 @@ public class TestRunner {
     this.env.setBufferTimeout(5);
     this.tableEnv = StreamTableEnvironment.create(env, fsSettings);
     this.batchCompiler = new FlinkBatchCompiler(env, tableEnv);
-    this.realtimeCompiler = new FlinkRealtimeCompiler(env, tableEnv);
+    this.realtimeCompiler = new FlinkRealtimeCompiler(env, tableEnv, Duration.ZERO);
     this.testCompiler = new TestCompiler();
 
     // To make sure all inputs and outputs are aligned.

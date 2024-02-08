@@ -19,13 +19,15 @@ import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.util.Collector;
 
+import java.time.Duration;
+
 import static com.airwallex.airskiff.flink.Utils.pairType;
 import static com.airwallex.airskiff.flink.Utils.typeInfo;
 
 public class FlinkRealtimeCompiler extends AbstractFlinkCompiler {
 
-  public FlinkRealtimeCompiler(StreamExecutionEnvironment env, StreamTableEnvironment tableEnv) {
-    super(env, tableEnv);
+  public FlinkRealtimeCompiler(StreamExecutionEnvironment env, StreamTableEnvironment tableEnv, Duration allowedLatency) {
+    super(env, tableEnv, allowedLatency);
     env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
   }
 

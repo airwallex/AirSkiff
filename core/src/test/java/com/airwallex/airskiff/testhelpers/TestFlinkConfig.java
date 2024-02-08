@@ -6,6 +6,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.time.Duration;
 import java.util.List;
 
 public class TestFlinkConfig<T> implements FlinkConfig<T> {
@@ -24,6 +25,6 @@ public class TestFlinkConfig<T> implements FlinkConfig<T> {
 
   @Override
   public DataStream<Tuple2<Long, T>> source(StreamExecutionEnvironment env, boolean isBatch) {
-    return env.fromCollection(_data).assignTimestampsAndWatermarks(Utils.watermark(isBatch));
+    return env.fromCollection(_data).assignTimestampsAndWatermarks(Utils.watermark(isBatch, Duration.ZERO));
   }
 }

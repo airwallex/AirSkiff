@@ -4,6 +4,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
+import java.time.Duration;
+
 import static com.airwallex.airskiff.flink.Utils.tuple2TypeInfo;
 
 public class FlinkLocalTextConfig implements FlinkConfig<String> {
@@ -29,6 +31,6 @@ public class FlinkLocalTextConfig implements FlinkConfig<String> {
       stream = env.socketTextStream("localhost", 10000);
     }
     return stream.map(t -> new Tuple2<>(System.currentTimeMillis(), t), tuple2TypeInfo(String.class))
-      .assignTimestampsAndWatermarks(Utils.watermark(isBatch));
+      .assignTimestampsAndWatermarks(Utils.watermark(isBatch, Duration.ZERO));
   }
 }
