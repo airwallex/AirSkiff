@@ -8,17 +8,16 @@ import java.util.List;
 public class StdDevFunction extends AggregateFunction<Double, StdDevAccumulator> {
   @Override
   public Double getValue(StdDevAccumulator acc) {
-    List<Double> list = acc.nums.getList();
-    if(list.size() == 0 || list.size() == 1) {
+    if(acc.count == 0 || acc.count == 1) {
       return null;
-    } else {
-      Double avg = list.stream().mapToDouble(a -> a).average().orElse(0.0);
-      Double sum = 0.0;
-      for(Double num : list) {
-        sum += (num-avg)*(num-avg);
-      }
-      return Math.sqrt(sum/(list.size()-1));
     }
+    List<Double> list = acc.nums.getList();
+    double avg = acc.sum / acc.count;
+    double squaredDiffSum = 0.0;
+    for(double num : list) {
+      squaredDiffSum  += Math.pow(num - avg, 2);
+    }
+    return Math.sqrt(squaredDiffSum/(acc.count-1));
   }
 
   @Override
@@ -27,14 +26,20 @@ public class StdDevFunction extends AggregateFunction<Double, StdDevAccumulator>
   }
 
   public void accumulate(StdDevAccumulator acc, Double value) throws Exception {
+    acc.count++;
+    acc.sum += value;
     acc.nums.add(value);
   }
 
   public void retract(StdDevAccumulator acc, Double value) throws Exception {
+    acc.count--;
+    acc.sum -= value;
     acc.nums.remove(value);
   }
 
   public void resetAccumulator(StdDevAccumulator acc) {
+    acc.count = 0;
+    acc.sum = 0.0;
     acc.nums.clear();
   }
 }

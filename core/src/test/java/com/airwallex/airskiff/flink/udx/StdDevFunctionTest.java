@@ -1,5 +1,6 @@
 package com.airwallex.airskiff.flink.udx;
 
+import com.google.common.math.DoubleMath;
 import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.eventtime.*;
 import org.apache.flink.api.java.tuple.Tuple3;
@@ -27,6 +28,7 @@ public class StdDevFunctionTest {
   public static MiniClusterWithClientResource flinkCluster;
   public StreamExecutionEnvironment env;
   public StreamTableEnvironment tableEnv;
+  private static final double tolerance = 1.0E-9;
 
   @Before
   public void setup() throws Exception {
@@ -76,12 +78,13 @@ public class StdDevFunctionTest {
     assertEquals(3.0, Sink.values.get(3).getField(2));
   }
 
+  // ASStddev have little difference with stddev in FlinkSQL standard library
   @Test
   public void compareWithLibStddev() throws Exception {
     Sink.values.clear();
     List<Tuple3<Long, String, Double>> list = new ArrayList<>();
     for(int i = 0; i < 1000; i++) {
-      list.add(new Tuple3(1708403000000L + i*60000, "a", i*1.0));
+      list.add(new Tuple3(1708403000000L + i*60000, "a", ((int)(Math.random() * 100))*1.0));
     }
     DataStream<Tuple3<Long, String, Double>> source = env.fromCollection(list);
     DataStream<Tuple3<Long, String, Double>> ds = source.assignTimestampsAndWatermarks(
@@ -98,17 +101,22 @@ public class StdDevFunctionTest {
     Table t = tableEnv.sqlQuery(sql);
     tableEnv.toDataStream(t).addSink(new Sink());
     env.execute();
-    for(int i = 0; i < 1000; i++) {
-      assertEquals(Sink.values.get(i).getField(2), Sink.values.get(i).getField(3));
+    for(int i = 1; i < 1000; i++) {
+      assertEquals(true, DoubleMath.fuzzyEquals(
+        (double)Sink.values.get(i).getField(2),
+        (double)Sink.values.get(i).getField(3),
+        tolerance)
+      );
     }
   }
 
+  // ASStddev returns a small number when all numbers are same, while stddev returns NaN
   @Test
   public void diffWithLibStddev() throws Exception {
     Sink.values.clear();
     List<Tuple3<Long, String, Double>> list = new ArrayList<>();
     for(int i = 0; i < 1000; i++) {
-      list.add(new Tuple3(1708403000000L + i*60000, "a", 0.001));
+      list.add(new Tuple3(1708403000000L + i*1, "a", 0.001));
     }
     DataStream<Tuple3<Long, String, Double>> source = env.fromCollection(list);
     DataStream<Tuple3<Long, String, Double>> ds = source.assignTimestampsAndWatermarks(
@@ -125,16 +133,23 @@ public class StdDevFunctionTest {
     Table t = tableEnv.sqlQuery(sql);
     tableEnv.toDataStream(t).addSink(new Sink());
     env.execute();
+    int ASStddevNaNCnt = 0;
+    int stddevNaNCnt = 0;
     for(int i = 1; i < 1000; i++) {
-      assertEquals(0.0, Sink.values.get(i).getField(2));
-    }
-    int NaNCnt = 0;
-    for(int i = 1; i < 1000; i++) {
+      if(Double.isNaN((Double)Sink.values.get(i).getField(2))) {
+        ASStddevNaNCnt++;
+      }
+      assertEquals(true, DoubleMath.fuzzyEquals(
+        (double)Sink.values.get(i).getField(2),
+        0.0,
+        tolerance)
+      );
       if(Double.isNaN((Double)Sink.values.get(i).getField(3))) {
-        NaNCnt++;
+        stddevNaNCnt++;
       }
     }
-    assertNotEquals(0, NaNCnt);
+    assertEquals(0, ASStddevNaNCnt);
+    assertNotEquals(0, stddevNaNCnt);
   }
 
   @After
