@@ -26,12 +26,14 @@ public class StdDevFunction extends AggregateFunction<Double, StdDevAccumulator>
   }
 
   public void accumulate(StdDevAccumulator acc, Double value) throws Exception {
+    if(value == null) return;
     acc.count++;
     acc.sum += value;
     acc.nums.add(value);
   }
 
   public void retract(StdDevAccumulator acc, Double value) throws Exception {
+    if(value == null) return;
     acc.count--;
     acc.sum -= value;
     acc.nums.remove(value);
