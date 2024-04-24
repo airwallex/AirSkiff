@@ -1,6 +1,5 @@
 package com.airwallex.airskiff.flink.udx;
 
-import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.functions.AggregateFunction;
 
 import java.util.List;
@@ -44,4 +43,7 @@ public class StdDevFunction extends AggregateFunction<Double, StdDevAccumulator>
     acc.sum = 0.0;
     acc.nums.clear();
   }
+
+  // this AggregateFunction can only be applied in an OVER window
+  public Boolean requiresOver = true;
 }
