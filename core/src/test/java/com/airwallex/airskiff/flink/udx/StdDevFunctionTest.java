@@ -152,6 +152,64 @@ public class StdDevFunctionTest {
     assertNotEquals(0, stddevNaNCnt);
   }
 
+  @Test
+  public void testSQLWithNull() throws Exception {
+    Sink.values.clear();
+    DataStream<Tuple3<Long, String, Double>> source = env.fromElements(
+      new Tuple3(1708403000001L, "a", 3.0),    // null
+      new Tuple3(1708403000002L, "a", -1.0),   // null
+      new Tuple3(1708403300000L, "a", 6.0),    // stddev([3.0, 6.0]) = 2.1213...
+      new Tuple3(1708403300001L, "a", -1.0),   // stddev([3.0, 6.0]) = 2.1213...
+      new Tuple3(1708403600000L, "a", 9.0),    // stddev([3.0, 6.0, 9.0]) = 3.0
+      new Tuple3(1708403600001L, "a", -1.0)    // stddev([3.0, 6.0, 9.0]) = 3.0
+    );
+    DataStream<Tuple3<Long, String, Double>> ds = source.assignTimestampsAndWatermarks(
+      WatermarkStrategy.<Tuple3<Long, String, Double>>forMonotonousTimestamps().withTimestampAssigner(
+        (t, x) -> t.f0)
+    );
+    tableEnv.createTemporaryView("tmp", ds, $("f0"), $("f1"), $("f2"), $("f0").rowtime().as("row_time"));
+
+    String sql =
+      "SELECT f0, f1 " +
+        " ,ASStddev(case when f2 = -1.0 then null else f2 end) OVER (PARTITION BY f1 ORDER BY row_time RANGE BETWEEN INTERVAL '10' MINUTE PRECEDING AND CURRENT ROW) " +
+        "   ,stddev(case when f2 = -1.0 then null else f2 end) OVER (PARTITION BY f1 ORDER BY row_time RANGE BETWEEN INTERVAL '10' MINUTE PRECEDING AND CURRENT ROW) " +
+        " FROM tmp";
+    Table t = tableEnv.sqlQuery(sql);
+    tableEnv.toDataStream(t).addSink(new Sink());
+    env.execute();
+//    [1708403000001, a, null, null]
+//    [1708403000002, a, null, null]
+//    [1708403300000, a, 2.12132034..., 2.12132034...]
+//    [1708403300001, a, 2.12132034..., 2.12132034...]
+//    [1708403600000, a, 3.0, 3.0]
+//    [1708403600001, a, 3.0, 3.0]
+    assertEquals(6, Sink.values.size());
+    assertEquals(1708403000001L, Sink.values.get(0).getField(0));
+    assertEquals("a", Sink.values.get(0).getField(1));
+    assertEquals(null, Sink.values.get(0).getField(2));
+    assertEquals(Sink.values.get(0).getField(2), Sink.values.get(0).getField(3));
+
+    assertEquals(1708403000002L, Sink.values.get(1).getField(0));
+    assertEquals("a", Sink.values.get(1).getField(1));
+    assertEquals(null, Sink.values.get(1).getField(2));
+    assertEquals(Sink.values.get(1).getField(2), Sink.values.get(1).getField(3));
+
+    assertEquals(Sink.values.get(2).getField(1), Sink.values.get(3).getField(1));
+    assertEquals(Sink.values.get(2).getField(2), Sink.values.get(2).getField(3));
+    assertEquals(Sink.values.get(3).getField(2), Sink.values.get(3).getField(3));
+    assertEquals(Sink.values.get(2).getField(2), Sink.values.get(3).getField(2));
+
+    assertEquals(1708403600000L, Sink.values.get(4).getField(0));
+    assertEquals("a", Sink.values.get(4).getField(1));
+    assertEquals(3.0, Sink.values.get(4).getField(2));
+    assertEquals(Sink.values.get(4).getField(2), Sink.values.get(4).getField(3));
+
+    assertEquals(1708403600001L, Sink.values.get(5).getField(0));
+    assertEquals("a", Sink.values.get(5).getField(1));
+    assertEquals(3.0, Sink.values.get(5).getField(2));
+    assertEquals(Sink.values.get(5).getField(2), Sink.values.get(5).getField(3));
+  }
+
   @After
   public void tearDown() throws Exception {
     flinkCluster.after();
