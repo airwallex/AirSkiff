@@ -28,12 +28,12 @@ import java.util.Set;
 
 public class Utils {
 
-  public static <T> WatermarkStrategy<Tuple2<Long, T>> watermark(boolean isBatch, Duration allowedLatency) {
+  public static <T> WatermarkStrategy<Tuple2<Long, T>> watermark(boolean isBatch, Duration allowedLatency, Duration withIdleness) {
     if (isBatch) {
       return WatermarkStrategy.<Tuple2<Long, T>>forBoundedOutOfOrderness(Duration.ofDays(365 * 10000))
         .withTimestampAssigner((t, l) -> t.f0);
     } else {
-      return new RealtimeWatermarkStrategy<Tuple2<Long, T>>(Duration.ofDays(5), allowedLatency).withTimestampAssigner((t, l) -> t.f0).withIdleness(Duration.ofMillis(300));
+      return new RealtimeWatermarkStrategy<Tuple2<Long, T>>(Duration.ofDays(5), allowedLatency).withTimestampAssigner((t, l) -> t.f0).withIdleness(withIdleness);
     }
   }
 
