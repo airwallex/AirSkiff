@@ -29,7 +29,7 @@ public class LocalRealtimeSQLWordCountJob {
         Counter.class
       );
 
-    new FlinkRealtimeCompiler(env, tableEnv, Duration.ZERO).compile(stream).print();
+    new FlinkRealtimeCompiler(env, tableEnv, Duration.ZERO, Duration.ofMillis(300)).compile(stream).print();
     env.execute();
   }
 }

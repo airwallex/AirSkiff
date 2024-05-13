@@ -49,7 +49,7 @@ public class TestRunner {
     this.env.setBufferTimeout(5);
     this.tableEnv = StreamTableEnvironment.create(env, fsSettings);
     this.batchCompiler = new FlinkBatchCompiler(env, tableEnv);
-    this.realtimeCompiler = new FlinkRealtimeCompiler(env, tableEnv, Duration.ZERO);
+    this.realtimeCompiler = new FlinkRealtimeCompiler(env, tableEnv, Duration.ZERO, Duration.ofMillis(300));
     this.testCompiler = new TestCompiler();
 
     // To make sure all inputs and outputs are aligned.
