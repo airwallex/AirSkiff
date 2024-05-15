@@ -26,8 +26,9 @@ import static com.airwallex.airskiff.flink.Utils.typeInfo;
 
 public class FlinkRealtimeCompiler extends AbstractFlinkCompiler {
 
-  public FlinkRealtimeCompiler(StreamExecutionEnvironment env, StreamTableEnvironment tableEnv, Duration allowedLatency) {
-    super(env, tableEnv, allowedLatency);
+  public FlinkRealtimeCompiler(StreamExecutionEnvironment env, StreamTableEnvironment tableEnv, Duration allowedLatency,
+                               Duration withIdleness) {
+    super(env, tableEnv, allowedLatency, withIdleness);
     env.setRuntimeMode(RuntimeExecutionMode.STREAMING);
   }
 

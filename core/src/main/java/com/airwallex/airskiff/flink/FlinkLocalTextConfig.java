@@ -31,6 +31,6 @@ public class FlinkLocalTextConfig implements FlinkConfig<String> {
       stream = env.socketTextStream("localhost", 10000);
     }
     return stream.map(t -> new Tuple2<>(System.currentTimeMillis(), t), tuple2TypeInfo(String.class))
-      .assignTimestampsAndWatermarks(Utils.watermark(isBatch, Duration.ZERO));
+      .assignTimestampsAndWatermarks(Utils.watermark(isBatch, Duration.ZERO, Duration.ofMillis(300)));
   }
 }

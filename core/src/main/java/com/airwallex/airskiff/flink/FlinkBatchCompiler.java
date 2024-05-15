@@ -31,7 +31,7 @@ public class FlinkBatchCompiler extends AbstractFlinkCompiler {
   public static final TumblingEventTimeWindows WINDOW = TumblingEventTimeWindows.of(Time.days(365 * 10000));
 
   public FlinkBatchCompiler(StreamExecutionEnvironment env, StreamTableEnvironment tableEnv) {
-    super(env, tableEnv, Duration.ZERO);
+    super(env, tableEnv, Duration.ZERO, Duration.ofMillis(300));
     env.setRuntimeMode(RuntimeExecutionMode.BATCH);
   }
 

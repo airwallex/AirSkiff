@@ -25,6 +25,6 @@ public class TestFlinkConfig<T> implements FlinkConfig<T> {
 
   @Override
   public DataStream<Tuple2<Long, T>> source(StreamExecutionEnvironment env, boolean isBatch) {
-    return env.fromCollection(_data).assignTimestampsAndWatermarks(Utils.watermark(isBatch, Duration.ZERO));
+    return env.fromCollection(_data).assignTimestampsAndWatermarks(Utils.watermark(isBatch, Duration.ZERO, Duration.ofMillis(300)));
   }
 }
