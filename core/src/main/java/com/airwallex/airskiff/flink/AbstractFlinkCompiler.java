@@ -370,28 +370,6 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
             U last = results.get(results.size() - 1);
             out.collect(new Tuple2<>(timestamp, new Pair<>(key, last)));
           }
-
-          // Schedule next processing
-          ctx.timerService().registerEventTimeTimer(timestamp + sw.slide().toMillis());
-        }
-
-        @Override
-        public void onTimer(long timestamp, OnTimerContext ctx, Collector<Tuple2<Long, Pair<K, U>>> out) throws Exception {
-          // Process window on timer
-          long windowStart = timestamp - sw.size().toMillis();
-          List<T> windowElements = new ArrayList<>();
-          for (Long ts : windowState.keys()) {
-            if (ts >= windowStart && ts <= timestamp) {
-              windowElements.add(windowState.get(ts));
-            }
-          }
-          List<U> results = Lists.newArrayList(f.apply(windowElements));
-
-          if (!results.isEmpty()) {
-            U last = results.get(results.size() - 1);
-            K key = ctx.getCurrentKey();
-            out.collect(new Tuple2<>(timestamp, new Pair<>(key, last)));
-          }
         }
       }, new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, new PairTypeInfo<>(typeInfo(stream.keyClass()), typeInfo(stream.uc)))), t -> t.f1.l);
     }
@@ -449,26 +427,6 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
 
           // Update state and schedule next processing
           windowState.update(treeMap);
-          ctx.timerService().registerEventTimeTimer(timestamp + sw.slide().toMillis());
-        }
-
-        @Override
-        public void onTimer(long timestamp, OnTimerContext ctx, Collector<Tuple2<Long, Pair<K, U>>> out) throws Exception {
-          TreeMap<Long, T> treeMap = windowState.value();
-          if (treeMap == null || treeMap.isEmpty()) {
-            return;
-          }
-
-          long windowStart = timestamp - sw.size().toMillis();
-          NavigableMap<Long, T> windowMap = treeMap.subMap(windowStart, true, timestamp, true);
-          List<T> windowElements = new ArrayList<>(windowMap.values());
-          List<U> results = Lists.newArrayList(f.apply(windowElements));
-
-          if (!results.isEmpty()) {
-            U last = results.get(results.size() - 1);
-            K key = ctx.getCurrentKey();
-            out.collect(new Tuple2<>(timestamp, new Pair<>(key, last)));
-          }
         }
       }, new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, new PairTypeInfo<>(typeInfo(stream.keyClass()), typeInfo(stream.uc)))), t -> t.f1.l);
     }

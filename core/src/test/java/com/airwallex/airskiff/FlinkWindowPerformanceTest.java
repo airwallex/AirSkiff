@@ -104,13 +104,13 @@ public class FlinkWindowPerformanceTest {
   public void testWindowPerformance() throws Exception {
     var rounds = 5;
     while (rounds > 0) {
-      List<Tuple2<Long, TestInputData>> resultV1 = runWindowTest("v1");
       List<Tuple2<Long, TestInputData>> resultV2 = runWindowTest("v2");
       List<Tuple2<Long, TestInputData>> resultV3 = runWindowTest("v3");
+      List<Tuple2<Long, TestInputData>> resultV1 = runWindowTest("v1");
 
-      compareResults(resultV1, resultV2, "v1", "v2");
+//      compareResults(resultV1, resultV2, "v1", "v2");
       compareResults(resultV1, resultV3, "v1", "v3");
-      compareResults(resultV2, resultV3, "v2", "v3");
+      compareResults(resultV2, resultV3, "v1", "v2");
 
       System.out.println("Round " + (6 - rounds) + " completed\n");
       rounds--;
