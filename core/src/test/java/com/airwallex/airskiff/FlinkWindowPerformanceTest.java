@@ -108,7 +108,6 @@ public class FlinkWindowPerformanceTest {
       List<Tuple2<Long, TestInputData>> resultV3 = runWindowTest("v3");
       List<Tuple2<Long, TestInputData>> resultV1 = runWindowTest("v1");
 
-//      compareResults(resultV1, resultV2, "v1", "v2");
       compareResults(resultV1, resultV3, "v1", "v3");
       compareResults(resultV2, resultV3, "v1", "v2");
 

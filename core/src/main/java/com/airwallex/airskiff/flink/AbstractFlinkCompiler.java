@@ -403,11 +403,12 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
           T element = value.f1.r;
           K key = value.f1.l;
 
-          // Update state
           TreeMap<Long, T> treeMap = windowState.value();
           if (treeMap == null) {
             treeMap = new TreeMap<>();
           }
+
+          // Update state
           treeMap.put(timestamp, element);
 
           // Clean up old data
@@ -425,7 +426,7 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
             out.collect(new Tuple2<>(timestamp, new Pair<>(key, last)));
           }
 
-          // Update state and schedule next processing
+          // Update state
           windowState.update(treeMap);
         }
       }, new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, new PairTypeInfo<>(typeInfo(stream.keyClass()), typeInfo(stream.uc)))), t -> t.f1.l);
