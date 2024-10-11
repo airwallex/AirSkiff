@@ -12,11 +12,7 @@ import com.google.api.client.util.Lists;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.ListState;
-import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.state.*;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -37,9 +33,7 @@ import org.apache.flink.util.Collector;
 
 import java.lang.reflect.Field;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 import static com.airwallex.airskiff.flink.Utils.*;
 import static org.apache.flink.table.api.Expressions.$;
@@ -235,7 +229,7 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
     if (w instanceof EventTimeBasedSlidingWindow) {
       final EventTimeBasedSlidingWindow sw = (EventTimeBasedSlidingWindow) w;
       return new KeyedStream<>(ks.process(new KeyedProcessFunction<K, Tuple2<Long, Pair<K, T>>, Tuple2<Long, Pair<K, U>>>() {
-        private transient ListState<Tuple2<Long, T>> sortedElements;
+        private transient MapState<Long, T> elementMap;
 
         public void open(Configuration parameters) throws Exception {
           long ttl = sw.size().toSeconds() + sw.slide().toSeconds() * 14;
@@ -245,55 +239,50 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
             .setStateVisibility(StateTtlConfig.StateVisibility.NeverReturnExpired)
             .cleanupIncrementally(10, false)
             .build();
-          ListStateDescriptor<Tuple2<Long, T>> descriptor = new ListStateDescriptor<>("elements", tuple2TypeInfo(clz));
+          MapStateDescriptor<Long, T> descriptor = new MapStateDescriptor<>("elements", BasicTypeInfo.LONG_TYPE_INFO, typeInfo(clz));
           descriptor.enableTimeToLive(ttlConfig);
-          sortedElements = getRuntimeContext().getListState(descriptor);
+          elementMap = getRuntimeContext().getMapState(descriptor);
         }
 
-        // two things:
-        // 1. insert t into sorted, while maintaining the order
-        // 2. remove elements in sorted that is too old
-        private void update(List<Tuple2<Long, T>> sorted, Tuple2<Long, T> t) {
-          // keep a 14 times of the slide size as a buffer in case we see a late event
-          // TODO: revisit this. ideally, we should be able to change the number
-          // through a config
-          long lowerBoundInclusive = t.f0 - sw.size().toMillis() - sw.slide().toMillis() * 14;
-          while (!sorted.isEmpty() && sorted.get(0).f0 < lowerBoundInclusive) {
-            sorted.remove(0);
-          }
+        private void updateMap(Long timestamp, T value) throws Exception {
+          long lowerBoundInclusive = timestamp - sw.size().toMillis() - sw.slide().toMillis() * 14;
 
-          int i = sorted.size() - 1;
-          for (; i >= 0; i--) {
-            Tuple2<Long, T> e = sorted.get(i);
-            if (e.f0 <= t.f0) {
-              break;
+          // Remove old elements
+          Iterator<Map.Entry<Long, T>> iterator = elementMap.entries().iterator();
+          while (iterator.hasNext()) {
+            Map.Entry<Long, T> entry = iterator.next();
+            if (entry.getKey() < lowerBoundInclusive) {
+              iterator.remove();
+            } else {
+              break; // MapState is ordered, so we can stop early
             }
           }
-          sorted.add(i + 1, t);
+
+          // Add new element
+          elementMap.put(timestamp, value);
         }
 
         @Override
         public void processElement(Tuple2<Long, Pair<K, T>> tuple, Context context, Collector<Tuple2<Long, Pair<K, U>>> collector) throws Exception {
-          List<Tuple2<Long, T>> elements = Lists.newArrayList(sortedElements.get());
-          Tuple2<Long, T> e = new Tuple2<>(tuple.f0, tuple.f1.r);
-          update(elements, e);
+          Long timestamp = tuple.f0;
+          T value = tuple.f1.r;
 
-          List<T> ts = new ArrayList<>();
-          long lowerBoundInclusive = e.f0 - sw.size().toMillis();
-          long upperBoundInclusive = e.f0;
-          for (Tuple2<Long, T> t : elements) {
-            if (t.f0 >= lowerBoundInclusive && t.f0 <= upperBoundInclusive) {
-              ts.add(t.f1);
+          updateMap(timestamp, value);
+
+          List<T> windowElements = new ArrayList<>();
+          long windowStart = timestamp - sw.size().toMillis();
+
+          for (Map.Entry<Long, T> entry : elementMap.entries()) {
+            if (entry.getKey() >= windowStart && entry.getKey() <= timestamp) {
+              windowElements.add(entry.getValue());
             }
           }
-          List<U> us = Lists.newArrayList(f.apply(ts));
-          if (!us.isEmpty()) {
-            U last = us.get(us.size() - 1);
-            // we only need the last one
-            collector.collect(new Tuple2<>(e.f0, new Pair<>(tuple.f1.l, last)));
-          }
 
-          sortedElements.update(elements);
+          List<U> results = Lists.newArrayList(f.apply(windowElements));
+          if (!results.isEmpty()) {
+            U last = results.get(results.size() - 1);
+            collector.collect(new Tuple2<>(timestamp, new Pair<>(tuple.f1.l, last)));
+          }
         }
       }, new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, new PairTypeInfo<>(typeInfo(stream.keyClass()), typeInfo(stream.uc)))), t -> t.f1.l);
     }
