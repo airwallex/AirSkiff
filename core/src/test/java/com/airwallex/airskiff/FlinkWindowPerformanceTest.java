@@ -83,8 +83,12 @@ public class FlinkWindowPerformanceTest {
 
   @Test
   public void testWindowPerformance() throws Exception {
-    runWindowTest("v1");
-    runWindowTest("v2");
-    runWindowTest("v3");
+    var rounds = 5;
+    while (rounds > 0) {
+      runWindowTest("v1");
+      runWindowTest("v2");
+      runWindowTest("v3");
+      rounds--;
+    }
   }
 }
