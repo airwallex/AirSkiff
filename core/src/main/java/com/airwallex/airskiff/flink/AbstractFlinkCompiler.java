@@ -253,8 +253,6 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
             Map.Entry<Long, T> entry = iterator.next();
             if (entry.getKey() < lowerBoundInclusive) {
               iterator.remove();
-            } else {
-              break; // MapState is ordered, so we can stop early
             }
           }
 
