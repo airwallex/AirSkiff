@@ -14,6 +14,7 @@ import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.state.*;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
@@ -43,6 +44,16 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
   protected final StreamTableEnvironment tableEnv;
   protected final Duration allowedLatency;
   protected final Duration withIdleness;
+
+  public String getWindowFnVersion() {
+    return windowFnVersion;
+  }
+
+  public void setWindowFnVersion(String windowFnVersion) {
+    this.windowFnVersion = windowFnVersion;
+  }
+
+  private String windowFnVersion = "v1";
 
   public AbstractFlinkCompiler(StreamExecutionEnvironment env, StreamTableEnvironment tableEnv, Duration allowedLatency,
                                Duration withIdleness) {
@@ -211,7 +222,16 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
       return mapValue((MapValueStream<K, ?, T>) ks);
     }
     if (ks instanceof WindowedStream) {
-      return compileWindow((WindowedStream<K, ?, T, ? extends Window>) ks);
+      switch (windowFnVersion) {
+        case "v1":
+          return compileWindow((WindowedStream<K, ?, T, ? extends Window>) ks);
+        case "v2":
+          return compileWindowV2((WindowedStream<K, ?, T, ? extends Window>) ks);
+        case "v3":
+          return compileWindowV3((WindowedStream<K, ?, T, ? extends Window>) ks);
+        default:
+          throw new IllegalArgumentException("Unsupported windowFnVersion: " + windowFnVersion);
+      }
     }
     throw new IllegalArgumentException("Unknown KStream type: " + ks.getClass());
   }
@@ -280,6 +300,167 @@ public abstract class AbstractFlinkCompiler implements Compiler<DataStream<?>> {
           if (!results.isEmpty()) {
             U last = results.get(results.size() - 1);
             collector.collect(new Tuple2<>(timestamp, new Pair<>(tuple.f1.l, last)));
+          }
+        }
+      }, new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, new PairTypeInfo<>(typeInfo(stream.keyClass()), typeInfo(stream.uc)))), t -> t.f1.l);
+    }
+    throw new IllegalArgumentException("window type not supported: " + w.getClass().getName());
+  }
+
+  protected <K, T, U, W extends Window> KeyedStream<Tuple2<Long, Pair<K, U>>, K> compileWindowV2(WindowedStream<K, T, U, W> stream) {
+    KeyedStream<Tuple2<Long, Pair<K, T>>, K> ks = compileKS(stream.stream);
+    final Window w = stream.window;
+    final Class<T> clz = StreamUtils.kStreamClass(stream.stream);
+    final NamedSerializableIterableLambda<T, U> f = stream.f;
+
+    if (w instanceof EventTimeBasedSlidingWindow) {
+      final EventTimeBasedSlidingWindow sw = (EventTimeBasedSlidingWindow) w;
+      return new KeyedStream<>(ks.process(new KeyedProcessFunction<K, Tuple2<Long, Pair<K, T>>, Tuple2<Long, Pair<K, U>>>() {
+        private transient MapState<Long, T> windowState;
+
+        @Override
+        public void open(Configuration parameters) throws Exception {
+          MapStateDescriptor<Long, T> descriptor = new MapStateDescriptor<>(
+            "windowState",
+            TypeInformation.of(Long.class),
+            TypeInformation.of(clz)
+          );
+          windowState = getRuntimeContext().getMapState(descriptor);
+        }
+
+        @Override
+        public void processElement(Tuple2<Long, Pair<K, T>> value, Context ctx, Collector<Tuple2<Long, Pair<K, U>>> out) throws Exception {
+          long timestamp = value.f0;
+          T element = value.f1.r;
+          K key = value.f1.l;
+
+          // Update state
+          windowState.put(timestamp, element);
+
+          // Clean up old data
+          long windowStart = timestamp - sw.size().toMillis();
+          long cleanupThreshold = windowStart - sw.slide().toMillis() * 14;
+          List<Long> keysToRemove = new ArrayList<>();
+          for (Long ts : windowState.keys()) {
+            if (ts < cleanupThreshold) {
+              keysToRemove.add(ts);
+            }
+          }
+          for (Long ts : keysToRemove) {
+            windowState.remove(ts);
+          }
+
+          // Process window
+          List<T> windowElements = new ArrayList<>();
+          for (Long ts : windowState.keys()) {
+            if (ts >= windowStart && ts <= timestamp) {
+              windowElements.add(windowState.get(ts));
+            }
+          }
+          List<U> results = Lists.newArrayList(f.apply(windowElements));
+
+          if (!results.isEmpty()) {
+            U last = results.get(results.size() - 1);
+            out.collect(new Tuple2<>(timestamp, new Pair<>(key, last)));
+          }
+
+          // Schedule next processing
+          ctx.timerService().registerEventTimeTimer(timestamp + sw.slide().toMillis());
+        }
+
+        @Override
+        public void onTimer(long timestamp, OnTimerContext ctx, Collector<Tuple2<Long, Pair<K, U>>> out) throws Exception {
+          // Process window on timer
+          long windowStart = timestamp - sw.size().toMillis();
+          List<T> windowElements = new ArrayList<>();
+          for (Long ts : windowState.keys()) {
+            if (ts >= windowStart && ts <= timestamp) {
+              windowElements.add(windowState.get(ts));
+            }
+          }
+          List<U> results = Lists.newArrayList(f.apply(windowElements));
+
+          if (!results.isEmpty()) {
+            U last = results.get(results.size() - 1);
+            K key = ctx.getCurrentKey();
+            out.collect(new Tuple2<>(timestamp, new Pair<>(key, last)));
+          }
+        }
+      }, new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, new PairTypeInfo<>(typeInfo(stream.keyClass()), typeInfo(stream.uc)))), t -> t.f1.l);
+    }
+    throw new IllegalArgumentException("window type not supported: " + w.getClass().getName());
+  }
+
+  protected <K, T, U, W extends Window> KeyedStream<Tuple2<Long, Pair<K, U>>, K> compileWindowV3(WindowedStream<K, T, U, W> stream) {
+    KeyedStream<Tuple2<Long, Pair<K, T>>, K> ks = compileKS(stream.stream);
+    final Window w = stream.window;
+    final Class<T> clz = StreamUtils.kStreamClass(stream.stream);
+    final NamedSerializableIterableLambda<T, U> f = stream.f;
+
+    if (w instanceof EventTimeBasedSlidingWindow) {
+      final EventTimeBasedSlidingWindow sw = (EventTimeBasedSlidingWindow) w;
+      return new KeyedStream<>(ks.process(new KeyedProcessFunction<K, Tuple2<Long, Pair<K, T>>, Tuple2<Long, Pair<K, U>>>() {
+        private transient ValueState<TreeMap<Long, T>> windowState;
+
+        @Override
+        public void open(Configuration parameters) throws Exception {
+          ValueStateDescriptor<TreeMap<Long, T>> descriptor = new ValueStateDescriptor<>(
+            "windowState",
+            TypeInformation.of(new TypeHint<TreeMap<Long, T>>() {
+            })
+          );
+          windowState = getRuntimeContext().getState(descriptor);
+        }
+
+        @Override
+        public void processElement(Tuple2<Long, Pair<K, T>> value, Context ctx, Collector<Tuple2<Long, Pair<K, U>>> out) throws Exception {
+          long timestamp = value.f0;
+          T element = value.f1.r;
+          K key = value.f1.l;
+
+          // Update state
+          TreeMap<Long, T> treeMap = windowState.value();
+          if (treeMap == null) {
+            treeMap = new TreeMap<>();
+          }
+          treeMap.put(timestamp, element);
+
+          // Clean up old data
+          long windowStart = timestamp - sw.size().toMillis();
+          long cleanupThreshold = windowStart - sw.slide().toMillis() * 14;
+          treeMap.headMap(cleanupThreshold).clear();
+
+          // Process window
+          NavigableMap<Long, T> windowMap = treeMap.subMap(windowStart, true, timestamp, true);
+          List<T> windowElements = new ArrayList<>(windowMap.values());
+          List<U> results = Lists.newArrayList(f.apply(windowElements));
+
+          if (!results.isEmpty()) {
+            U last = results.get(results.size() - 1);
+            out.collect(new Tuple2<>(timestamp, new Pair<>(key, last)));
+          }
+
+          // Update state and schedule next processing
+          windowState.update(treeMap);
+          ctx.timerService().registerEventTimeTimer(timestamp + sw.slide().toMillis());
+        }
+
+        @Override
+        public void onTimer(long timestamp, OnTimerContext ctx, Collector<Tuple2<Long, Pair<K, U>>> out) throws Exception {
+          TreeMap<Long, T> treeMap = windowState.value();
+          if (treeMap == null || treeMap.isEmpty()) {
+            return;
+          }
+
+          long windowStart = timestamp - sw.size().toMillis();
+          NavigableMap<Long, T> windowMap = treeMap.subMap(windowStart, true, timestamp, true);
+          List<T> windowElements = new ArrayList<>(windowMap.values());
+          List<U> results = Lists.newArrayList(f.apply(windowElements));
+
+          if (!results.isEmpty()) {
+            U last = results.get(results.size() - 1);
+            K key = ctx.getCurrentKey();
+            out.collect(new Tuple2<>(timestamp, new Pair<>(key, last)));
           }
         }
       }, new TupleTypeInfo<>(BasicTypeInfo.LONG_TYPE_INFO, new PairTypeInfo<>(typeInfo(stream.keyClass()), typeInfo(stream.uc)))), t -> t.f1.l);
