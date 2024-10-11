@@ -15,6 +15,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 public class FlinkWindowPerformanceTest {
 
   private List<Tuple2<Long, TestInputData>> data;
@@ -49,7 +51,7 @@ public class FlinkWindowPerformanceTest {
     return generatedData;
   }
 
-  private void runWindowTest(String version) throws Exception {
+  private List<Tuple2<Long, TestInputData>> runWindowTest(String version) throws Exception {
     TestRunner runner = new TestRunner();
     var config = new TestFlinkConfig<>(data, TestInputData.class);
     var source = new SourceStream<>(config);
@@ -75,20 +77,44 @@ public class FlinkWindowPerformanceTest {
     var result = stream.executeAndCollect(DATA_SIZE);
 
     long endTime = System.nanoTime();
-    long duration = (endTime - startTime) / 1_000_000; // Convert to milliseconds
+    long duration = (endTime - startTime) / 1_000_000;
 
     System.out.println("Window function " + version + " execution time: " + duration + " ms");
     System.out.println("Result size: " + result.size());
+
+    return result;
+  }
+
+  private void compareResults(List<Tuple2<Long, TestInputData>> result1, List<Tuple2<Long, TestInputData>> result2, String version1, String version2) {
+    assertEquals(result1.size(), result2.size(), "Result sizes differ between " + version1 + " and " + version2);
+
+    for (int i = 0; i < result1.size(); i++) {
+      Tuple2<Long, TestInputData> r1 = result1.get(i);
+      Tuple2<Long, TestInputData> r2 = result2.get(i);
+
+      assertEquals(r1.f0, r2.f0, "Timestamps differ at index " + i + " between " + version1 + " and " + version2);
+      assertEquals(r1.f1.a, r2.f1.a, "Aggregated values differ at index " + i + " between " + version1 + " and " + version2);
+      assertEquals(r1.f1.b, r2.f1.b, "Keys differ at index " + i + " between " + version1 + " and " + version2);
+    }
+
+    System.out.println("Results are identical between " + version1 + " and " + version2);
   }
 
   @Test
   public void testWindowPerformance() throws Exception {
     var rounds = 5;
     while (rounds > 0) {
-      runWindowTest("v1");
-      runWindowTest("v2");
-      runWindowTest("v3");
+      List<Tuple2<Long, TestInputData>> resultV1 = runWindowTest("v1");
+      List<Tuple2<Long, TestInputData>> resultV2 = runWindowTest("v2");
+      List<Tuple2<Long, TestInputData>> resultV3 = runWindowTest("v3");
+
+      compareResults(resultV1, resultV2, "v1", "v2");
+      compareResults(resultV1, resultV3, "v1", "v3");
+      compareResults(resultV2, resultV3, "v2", "v3");
+
+      System.out.println("Round " + (6 - rounds) + " completed\n");
       rounds--;
     }
   }
+
 }
