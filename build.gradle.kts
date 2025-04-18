@@ -66,6 +66,18 @@ allprojects {
   }
 }
 
+// Configure Nexus publishing with token-based authentication
+nexusPublishing {
+  repositories {
+    sonatype {
+      nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
+      snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
+      username.set(System.getenv("OSSRH_USER_TOKEN_USERNAME") ?: findProperty("ossrhUsername")?.toString() ?: "")
+      password.set(System.getenv("OSSRH_USER_TOKEN_PASSWORD") ?: findProperty("ossrhPassword")?.toString() ?: "")
+    }
+  }
+}
+
 // Token-based publishing credentials for root project
 publishing {
     repositories {

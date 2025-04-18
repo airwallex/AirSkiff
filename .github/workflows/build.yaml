@@ -24,8 +24,8 @@ jobs:
         with:
           arguments: test --info
         env:
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          OSSRH_USER_TOKEN_USERNAME: ${{ secrets.OSSRH_USER_TOKEN_USERNAME }}
+          OSSRH_USER_TOKEN_PASSWORD: ${{ secrets.OSSRH_USER_TOKEN_PASSWORD }}
           GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
           GPG_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
           GPG_SECRET: ${{ secrets.GPG_SECRET_KEY }}
@@ -35,8 +35,8 @@ jobs:
         with:
           arguments: publishToSonatype closeAndReleaseSonatypeStagingRepository --info
         env:
-          OSSRH_USERNAME: ${{ secrets.OSSRH_USERNAME }}
-          OSSRH_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+          OSSRH_USER_TOKEN_USERNAME: ${{ secrets.OSSRH_USER_TOKEN_USERNAME }}
+          OSSRH_USER_TOKEN_PASSWORD: ${{ secrets.OSSRH_USER_TOKEN_PASSWORD }}
           GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
           GPG_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
           GPG_SECRET: ${{ secrets.GPG_SECRET_KEY }}
@@ -60,4 +60,3 @@ jobs:
 #          GPG_KEY_ID: ${{ secrets.GPG_KEY_ID }}
 #          GPG_PASSWORD: ${{ secrets.GPG_KEY_PASSWORD }}
 #          GPG_SECRET: ${{ secrets.GPG_SECRET_KEY }}
-
