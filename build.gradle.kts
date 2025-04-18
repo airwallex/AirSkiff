@@ -16,6 +16,20 @@ subprojects {
   apply(plugin = "java")
   apply(plugin = "signing")
   apply(plugin = "maven-publish")
+
+  // Configure publishing for all subprojects
+  configure<PublishingExtension> {
+    repositories {
+      maven {
+        name = "OSSRH"
+        url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+        credentials {
+          username = System.getenv("OSSRH_USER_TOKEN_USERNAME") ?: findProperty("ossrhUsername")?.toString() ?: ""
+          password = System.getenv("OSSRH_USER_TOKEN_PASSWORD") ?: findProperty("ossrhPassword")?.toString() ?: ""
+        }
+      }
+    }
+  }
 }
 
 allprojects {
@@ -52,22 +66,16 @@ allprojects {
   }
 }
 
-var ossrhUsername = System.getenv("OSSRH_USERNAME")
-if (ossrhUsername == null && project.hasProperty("ossrhUsername")) {
-  ossrhUsername = project.property("ossrhUsername").toString()
-}
-var ossrhPassword = System.getenv("OSSRH_PASSWORD")
-if (ossrhPassword == null && project.hasProperty("ossrhPassword")) {
-  ossrhPassword = project.property("ossrhPassword").toString()
-}
-
-nexusPublishing {
-  repositories {
-    sonatype {
-      nexusUrl.set(uri("https://s01.oss.sonatype.org/service/local/"))
-      snapshotRepositoryUrl.set(uri("https://s01.oss.sonatype.org/content/repositories/snapshots/"))
-      username.set(ossrhUsername.toString())
-      password.set(ossrhPassword.toString())
+// Token-based publishing credentials for root project
+publishing {
+    repositories {
+        maven {
+            name = "OSSRH"
+            url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
+            credentials {
+                username = System.getenv("OSSRH_USER_TOKEN_USERNAME") ?: findProperty("ossrhUsername")?.toString() ?: ""
+                password = System.getenv("OSSRH_USER_TOKEN_PASSWORD") ?: findProperty("ossrhPassword")?.toString() ?: ""
+            }
+        }
     }
-  }
 }
