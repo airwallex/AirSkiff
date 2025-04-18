@@ -57,33 +57,17 @@ public class TestRunner {
 
   // Default constructor for backward compatibility
   public TestRunner() {
-    this(getDefaultBatchCompiler(), getDefaultRealtimeCompiler());
-  }
-
-  // Helper methods to create default compilers (moved logic from old constructor)
-  private static FlinkBatchCompiler getDefaultBatchCompiler() {
     Configuration configuration = new Configuration();
     configuration.setString("table.exec.mini-batch.enabled", "true");
     configuration.setString("table.exec.mini-batch.allow-latency", "20 ms");
-    EnvironmentSettings fsSettings = EnvironmentSettings.newInstance().inStreamingMode().withConfiguration(configuration).build();
-    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    this.fsSettings = EnvironmentSettings.newInstance().inStreamingMode().withConfiguration(configuration).build();
+    this.env = StreamExecutionEnvironment.getExecutionEnvironment();
     env.setBufferTimeout(5);
     env.setParallelism(1); // Ensure parallelism is set for default env
-    StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, fsSettings);
-    return new FlinkBatchCompiler(env, tableEnv);
-  }
-
-  private static FlinkRealtimeCompiler getDefaultRealtimeCompiler() {
-    Configuration configuration = new Configuration();
-    configuration.setString("table.exec.mini-batch.enabled", "true");
-    configuration.setString("table.exec.mini-batch.allow-latency", "20 ms");
-    EnvironmentSettings fsSettings = EnvironmentSettings.newInstance().inStreamingMode().withConfiguration(configuration).build();
-    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-    env.setBufferTimeout(5);
-    env.setParallelism(1); // Ensure parallelism is set for default env
-    StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env, fsSettings);
-    // Note: Durations might need adjustment or parameterization if they differ for v2
-    return new FlinkRealtimeCompiler(env, tableEnv, Duration.ZERO, Duration.ofMillis(300));
+    this.tableEnv = StreamTableEnvironment.create(env, fsSettings);
+    this.batchCompiler = new FlinkBatchCompiler(env, tableEnv);
+    this.realtimeCompiler = new FlinkRealtimeCompiler(env, tableEnv, Duration.ZERO, Duration.ofMillis(300));
+    this.testCompiler = new TestCompiler();
   }
 
   public <T> List<Pair<Long, T>> toPairs(List<Tuple2<Long, T>> data) {
